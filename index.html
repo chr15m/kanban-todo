@@ -10,9 +10,6 @@
             --bg: #112;
             --shade: #889;
             --radius: 4px;
-            --card-bg: #223;
-            --column-bg: #1a1a2a;
-            --font-family: Helvetica, Arial, sans-serif;
         }
 
         html {
@@ -22,13 +19,14 @@
 
         *, ::after, ::before {
             box-sizing: inherit;
+            text-decoration-thickness: .1rem;
         }
 
         body {
             margin: 0;
             background: var(--bg);
             color: var(--fg);
-            font-family: var(--font-family);
+            font-family: Helvetica, Arial, sans-serif;
             padding: 1em;
             height: 100vh;
             display: flex;
@@ -36,17 +34,21 @@
             overflow: hidden;
         }
 
+        a {
+            color: var(--fg);
+        }
+
         button {
             display: inline-block;
-            padding: .5rem 1rem;
+            vertical-align: middle;
+            padding: .4rem .8rem;
             font-size: 1rem;
+            font-weight: normal;
             background: var(--fg);
             color: var(--bg);
             border: .1rem solid var(--fg);
             border-radius: var(--radius);
             cursor: pointer;
-            font-family: var(--font-family);
-            font-weight: bold;
         }
 
         button:hover {
@@ -56,10 +58,12 @@
         button:disabled {
             cursor: not-allowed;
             background: var(--shade);
-            border-color: var(--shade);
-            opacity: 0.7;
+            border: .1rem solid var(--shade);
         }
 
+        h1 { font-size: 2em; }
+        h2 { font-size: 1.5em; }
+        h3 { font-size: 1.17em; }
         h1, h2, h3 { margin-top: 0; }
 
         /* Layouts */
@@ -95,7 +99,7 @@
             justify-content: space-between;
             align-items: center;
             padding-bottom: 1em;
-            border-bottom: 1px solid var(--shade);
+            border-bottom: .1rem solid var(--shade);
             margin-bottom: 1em;
             flex-shrink: 0;
         }
@@ -110,23 +114,21 @@
         }
 
         .column {
-            background: var(--column-bg);
+            background: transparent;
             border-radius: var(--radius);
-            min-width: 320px;
-            max-width: 320px;
+            min-width: 200px;
+            max-width: 450px;
+            flex: 1 1 0;
             display: flex;
             flex-direction: column;
             max-height: 100%;
-            border: 1px solid var(--shade);
-            flex-shrink: 0;
+            border: .1rem solid var(--shade);
         }
 
         .column-header {
             padding: 0.75em;
             font-weight: bold;
-            border-bottom: 1px solid var(--shade);
-            background: rgba(255,255,255,0.05);
-            border-radius: var(--radius) var(--radius) 0 0;
+            border-bottom: .1rem solid var(--shade);
         }
 
         .card-list {
@@ -140,14 +142,13 @@
         }
 
         .card {
-            background: var(--card-bg);
+            background: transparent;
             padding: 0.75em;
             border-radius: var(--radius);
-            border: 1px solid var(--shade);
+            border: .1rem solid var(--shade);
             cursor: grab;
             user-select: none;
             word-wrap: break-word;
-            position: relative;
         }
 
         .card:hover {
@@ -165,7 +166,7 @@
 
         .card.dragging {
             opacity: 0.5;
-            border: 1px dashed var(--fg);
+            border: .1rem dashed var(--fg);
         }
 
         /* Section Picker */
@@ -183,9 +184,9 @@
             width: 100%;
             text-align: left;
             padding: 1em;
-            background: var(--column-bg);
+            background: transparent;
             color: var(--fg);
-            border: 1px solid var(--shade);
+            border: .1rem solid var(--shade);
         }
 
         .section-btn:hover {
@@ -193,11 +194,9 @@
         }
 
         .error {
-            color: #ff6b6b;
-            background: rgba(255, 0, 0, 0.1);
-            padding: 1em;
+            background-color: #782828;
+            padding: 0.5em 1em;
             border-radius: var(--radius);
-            border: 1px solid #ff6b6b;
         }
 
         /* Scrollbar styling */
@@ -214,6 +213,14 @@
         }
         ::-webkit-scrollbar-thumb:hover {
             background: var(--fg);
+        }
+
+        hr {
+            border: .05rem solid var(--fg);
+        }
+
+        p {
+            line-height: 1.4;
         }
     </style>
 </head>

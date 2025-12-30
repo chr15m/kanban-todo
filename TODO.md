@@ -14,7 +14,7 @@
 
 - [ ] Minimize the number of times the user is asked for access. If possible ask for all the access required at one time.
 
-- [ ] Give each column a max width of 450px and have them stretch to fill the area up to that.
+- [x] Give each column a max width of 450px and have them stretch to fill the area up to that.
 
 
 
