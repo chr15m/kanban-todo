@@ -61,6 +61,26 @@
             border: .1rem solid var(--shade);
         }
 
+        input[type="text"] {
+            appearance: none;
+            box-shadow: none;
+            box-sizing: inherit;
+            padding: .5rem .5rem;
+            width: 100%;
+            font-size: 1rem;
+            color: var(--fg);
+            background-color: var(--bg);
+            border: .1rem solid var(--fg);
+            border-radius: var(--radius);
+            font-family: Helvetica, Arial, sans-serif;
+        }
+
+        input::placeholder {
+            color: var(--fg);
+            font-style: italic;
+            opacity: 1;
+        }
+
         h1 { font-size: 2em; }
         h2 { font-size: 1.5em; }
         h3 { font-size: 1.17em; }
@@ -140,6 +160,7 @@
         .card-list {
             padding: 0.5em;
             overflow-y: auto;
+            overflow-x: hidden;
             flex-grow: 1;
             display: flex;
             flex-direction: column;
@@ -196,7 +217,6 @@
         .drop-indicator {
             height: 3px;
             background: var(--fg);
-            margin: -0.25em 0;
             border-radius: 2px;
             opacity: 0;
             transition: opacity 0.1s;
@@ -229,6 +249,18 @@
 
         .section-btn:hover {
             border-color: var(--fg);
+        }
+
+        .new-project-form {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            gap: 0.5em;
+            margin-top: 1em;
+        }
+
+        .new-project-form input {
+            flex-grow: 1;
         }
 
         .error {
@@ -284,6 +316,10 @@
         <div id="section-screen" class="screen center-content">
             <h1>Select Project</h1>
             <ul id="section-list" class="section-list"></ul>
+            <div class="new-project-form">
+                <input type="text" id="new-project-input" placeholder="New project name...">
+                <button id="create-project-btn">Create</button>
+            </div>
             <button id="change-file-btn" style="margin-top: 1em">Change File</button>
         </div>
 
@@ -293,7 +329,7 @@
                 <h2 id="board-title" style="margin:0">Project Name</h2>
                 <div class="header-controls">
                     <button id="toggle-completed-btn">Show Completed</button>
-                    <button id="back-btn">Back to Projects</button>
+                    <button id="back-btn">Projects</button>
                 </div>
             </header>
             <div id="board-container" class="board"></div>
@@ -540,6 +576,26 @@
             await writeFile(lines.join('\n'));
         }
 
+        async function createProject(projectName) {
+            console.log('Creating project:', projectName);
+            const file = await state.fileHandle.getFile();
+            const text = await file.text();
+            
+            let newText;
+            if (text.trim() === '') {
+                newText = `# ${projectName}\n\n## TODO\n\n## In Progress\n\n## Done\n`;
+            } else {
+                newText = text + (text.endsWith('\n') ? '' : '\n') + `\n# ${projectName}\n\n## TODO\n\n## In Progress\n\n## Done\n`;
+            }
+            
+            await writeFile(newText);
+            
+            const newSectionIndex = state.sections.findIndex(s => s.name === projectName);
+            if (newSectionIndex !== -1) {
+                await selectSection(newSectionIndex);
+            }
+        }
+
         async function loadFile() {
             try {
                 const file = await state.fileHandle.getFile();
@@ -610,6 +666,8 @@
                 li.appendChild(btn);
                 list.appendChild(li);
             });
+            
+            document.getElementById('new-project-input').value = '';
             
             showScreen('section-screen');
         }
@@ -1010,6 +1068,29 @@
 
         document.getElementById('change-file-btn').onclick = () => {
             document.getElementById('open-file-btn').click();
+        };
+
+        document.getElementById('create-project-btn').onclick = async () => {
+            const input = document.getElementById('new-project-input');
+            const projectName = input.value.trim();
+            
+            if (!projectName) {
+                alert('Please enter a project name');
+                return;
+            }
+            
+            if (state.sections.some(s => s.name === projectName)) {
+                alert('A project with this name already exists');
+                return;
+            }
+            
+            await createProject(projectName);
+        };
+
+        document.getElementById('new-project-input').onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('create-project-btn').click();
+            }
         };
 
         init();

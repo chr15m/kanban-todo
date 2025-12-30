@@ -2,10 +2,10 @@
 
 ## TODO
 
-- [ ] Ability to create a project on the projects select page, including if TODO.md is empty.
 - [ ] Ability to create, move, remove columns.
-- [ ] Minimize the number of times the user is asked for access. If possible ask for all the access required at one time.
 - [ ] Plus button in the columns to add a new item, with text input.
+- [ ] Can we make the columns vertically fill the available space?
+- [ ] Minimize the number of times the user is asked for access. If possible ask for all the access required at one time.
 
 ## In progress
 
@@ -19,4 +19,4 @@
 - [x] When moving between columns don't insert an extra newline before, unless moving to an empty column.
 - [x] Give each column a max width of 450px and have them stretch to fill the area up to that.
 - [x] Don't put carriage returns between individual TODO list items. As far as possible try to preserve original formatting, just moving individual lines around without disturbing other lines.
-
+- [x] Ability to create a project on the projects select page, including if TODO.md is empty.
