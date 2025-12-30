@@ -155,6 +155,7 @@
             cursor: grab;
             user-select: none;
             word-wrap: break-word;
+            position: relative;
         }
 
         .card:hover {
@@ -173,6 +174,21 @@
         .card.dragging {
             opacity: 0.5;
             border: .1rem dashed var(--fg);
+        }
+
+        .card-checkbox {
+            float: right;
+            width: 1em;
+            height: 1em;
+            border: .1rem solid var(--fg);
+            border-radius: 2px;
+            cursor: pointer;
+            background: transparent;
+            margin-left: 0.5em;
+        }
+
+        .card-checkbox.checked {
+            background: var(--fg);
         }
 
         /* Section Picker */
@@ -581,7 +597,6 @@
                     
                     const cardDiv = document.createElement('div');
                     cardDiv.className = `card ${card.completed ? 'completed' : ''}`;
-                    cardDiv.textContent = card.text;
                     cardDiv.draggable = true;
                     
                     cardDiv.dataset.lineNumber = card.lineNumber;
@@ -589,7 +604,10 @@
                     cardDiv.dataset.colIndex = colIndex;
                     cardDiv.dataset.cardIndex = cardIndex;
                     
-                    cardDiv.onclick = async () => {
+                    const checkbox = document.createElement('div');
+                    checkbox.className = `card-checkbox ${card.completed ? 'checked' : ''}`;
+                    checkbox.onclick = async (e) => {
+                        e.stopPropagation();
                         const lineNum = parseInt(cardDiv.dataset.lineNumber);
                         const originalLine = cardDiv.dataset.originalLine;
                         
@@ -599,6 +617,11 @@
                         
                         await updateLineInFile(lineNum, newLine);
                     };
+                    cardDiv.appendChild(checkbox);
+                    
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = card.text;
+                    cardDiv.appendChild(textSpan);
                     
                     cardDiv.ondragstart = (e) => handleDragStart(e, cardDiv);
                     cardDiv.ondragend = handleDragEnd;
