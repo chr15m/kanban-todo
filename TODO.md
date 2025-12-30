@@ -2,16 +2,17 @@
 
 ## TODO
 
-- [ ] Ability to create, move, remove columns.
-- [ ] Plus button in the columns to add a new item, with text input.
 - [ ] Can we make the columns vertically fill the available space?
 - [ ] Minimize the number of times the user is asked for access. If possible ask for all the access required at one time.
+- [ ] Ability to rename columns.
 
 ## In progress
 
 
 ## Done
 
+- [x] Plus button in the columns to add a new item, with text input.
+- [x] Ability to create columns.
 - [x] Moving cards around janks the file.
 - [x] When dragging between columns we should show the insertion point and insert the card at that point.
 - [x] Dropdown for setting the card as checked/unchecked.

@@ -283,6 +283,51 @@
             font-size: 0.9rem;
         }
 
+        .column-footer {
+            padding: 0.5em;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5em;
+            align-items: flex-end;
+        }
+
+        .add-card-btn {
+            width: 40px;
+            height: 40px;
+            font-size: 1.5rem;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .add-card-form {
+            display: none;
+            flex-direction: column;
+            gap: 0.5em;
+            width: 100%;
+        }
+
+        .add-card-form.active {
+            display: flex;
+        }
+
+        .add-card-form input {
+            margin: 0;
+        }
+
+        .add-card-form-buttons {
+            display: flex;
+            gap: 0.5em;
+        }
+
+        .add-card-form-buttons button {
+            flex: 1;
+            padding: 0.3rem 0.5rem;
+            font-size: 0.9rem;
+        }
+
         /* Section Picker */
         .section-list {
             list-style: none;
@@ -693,6 +738,43 @@
             await writeFile(lines.join('\n'));
         }
 
+        async function createCard(columnIndex, cardText) {
+            console.log('Creating card in column', columnIndex, ':', cardText);
+            const file = await state.fileHandle.getFile();
+            const text = await file.text();
+            const lines = text.split('\n');
+            
+            const section = state.sections[state.currentSectionIndex];
+            const column = section.columns[columnIndex];
+            
+            let insertLine;
+            if (column.cards.length === 0) {
+                insertLine = column.headerLineNumber + 1;
+                
+                if (insertLine < lines.length && lines[insertLine].trim() === '') {
+                    insertLine++;
+                }
+                
+                lines.splice(insertLine, 0, `- [ ] ${cardText}`);
+                
+                if (insertLine + 1 >= lines.length || lines[insertLine + 1].trim() !== '') {
+                    lines.splice(insertLine + 1, 0, '');
+                }
+            } else {
+                const lastCard = column.cards[column.cards.length - 1];
+                insertLine = lastCard.lineNumber + 1;
+                if (lastCard.nestedLines.length > 0) {
+                    insertLine += lastCard.nestedLines.length;
+                }
+                
+                lines.splice(insertLine, 0, `- [ ] ${cardText}`);
+            }
+            
+            console.log('Inserted new card at line', insertLine);
+            
+            await writeFile(lines.join('\n'));
+        }
+
         async function loadFile() {
             try {
                 const file = await state.fileHandle.getFile();
@@ -869,6 +951,57 @@
                 }
 
                 colDiv.appendChild(cardList);
+
+                const footer = document.createElement('div');
+                footer.className = 'column-footer';
+                
+                const addCardBtn = document.createElement('button');
+                addCardBtn.className = 'add-card-btn';
+                addCardBtn.textContent = '+';
+                addCardBtn.title = 'Add card';
+                addCardBtn.onclick = () => {
+                    const form = footer.querySelector('.add-card-form');
+                    addCardBtn.style.display = 'none';
+                    form.classList.add('active');
+                    form.querySelector('input').focus();
+                };
+                footer.appendChild(addCardBtn);
+                
+                const form = document.createElement('div');
+                form.className = 'add-card-form';
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = 'Card text...';
+                input.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateCard(colIndex, input, form, addCardBtn);
+                    }
+                };
+                form.appendChild(input);
+                
+                const buttons = document.createElement('div');
+                buttons.className = 'add-card-form-buttons';
+                
+                const createBtn = document.createElement('button');
+                createBtn.textContent = 'Add';
+                createBtn.onclick = () => handleCreateCard(colIndex, input, form, addCardBtn);
+                buttons.appendChild(createBtn);
+                
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.onclick = () => {
+                    form.classList.remove('active');
+                    addCardBtn.style.display = '';
+                    input.value = '';
+                };
+                buttons.appendChild(cancelBtn);
+                
+                form.appendChild(buttons);
+                footer.appendChild(form);
+                
+                colDiv.appendChild(footer);
                 container.appendChild(colDiv);
             });
 
@@ -944,6 +1077,21 @@
             input.value = '';
             
             await createColumn(columnName);
+        }
+
+        async function handleCreateCard(colIndex, input, form, addCardBtn) {
+            const cardText = input.value.trim();
+            
+            if (!cardText) {
+                alert('Please enter card text');
+                return;
+            }
+            
+            form.classList.remove('active');
+            addCardBtn.style.display = '';
+            input.value = '';
+            
+            await createCard(colIndex, cardText);
         }
 
         // --- Actions ---
