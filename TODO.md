@@ -16,6 +16,8 @@
 
 - [x] Give each column a max width of 450px and have them stretch to fill the area up to that.
 
+- [ ] Secific check type of UI for marking items complete/uncomplete.
+
 
 
 ## In progress

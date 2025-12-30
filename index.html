@@ -104,6 +104,12 @@
             flex-shrink: 0;
         }
 
+        .header-controls {
+            display: flex;
+            gap: 0.5em;
+            align-items: center;
+        }
+
         .board {
             display: flex;
             gap: 1em;
@@ -253,7 +259,10 @@
         <div id="board-screen" class="screen">
             <header>
                 <h2 id="board-title" style="margin:0">Project Name</h2>
-                <button id="back-btn">Back to Projects</button>
+                <div class="header-controls">
+                    <button id="toggle-completed-btn">Show Completed</button>
+                    <button id="back-btn">Back to Projects</button>
+                </div>
             </header>
             <div id="board-container" class="board"></div>
         </div>
@@ -270,7 +279,8 @@
             filePath: null,
             sections: [], // Parsed data
             currentSectionIndex: -1,
-            lastModified: 0
+            lastModified: 0,
+            showCompleted: false
         };
 
         // --- IndexedDB Helper ---
@@ -427,6 +437,10 @@
             if (!section) return renderSectionPicker();
 
             document.getElementById('board-title').textContent = section.name;
+            
+            const toggleBtn = document.getElementById('toggle-completed-btn');
+            toggleBtn.textContent = state.showCompleted ? 'Hide Completed' : 'Show Completed';
+            
             const container = document.getElementById('board-container');
             container.innerHTML = '';
 
@@ -448,6 +462,10 @@
                 cardList.className = 'card-list';
                 
                 column.cards.forEach((card, cardIndex) => {
+                    if (!state.showCompleted && card.completed) {
+                        return;
+                    }
+                    
                     const cardDiv = document.createElement('div');
                     cardDiv.className = `card ${card.completed ? 'completed' : ''}`;
                     cardDiv.textContent = card.text;
@@ -477,7 +495,10 @@
             // Persist selection
             if (state.filePath) {
                 const key = `kbtd:${state.filePath}`;
-                const uiState = { currentSection: state.sections[index].name };
+                const uiState = { 
+                    currentSection: state.sections[index].name,
+                    showCompleted: state.showCompleted
+                };
                 localStorage.setItem(key, JSON.stringify(uiState));
             }
             renderBoard();
@@ -488,6 +509,25 @@
             const card = section.columns[colIndex].cards[cardIndex];
             card.completed = !card.completed;
             await saveFile();
+            renderBoard();
+        }
+
+        function toggleShowCompleted() {
+            state.showCompleted = !state.showCompleted;
+            
+            if (state.filePath) {
+                const key = `kbtd:${state.filePath}`;
+                const stored = localStorage.getItem(key);
+                let uiState = {};
+                if (stored) {
+                    try {
+                        uiState = JSON.parse(stored);
+                    } catch (e) { console.error(e); }
+                }
+                uiState.showCompleted = state.showCompleted;
+                localStorage.setItem(key, JSON.stringify(uiState));
+            }
+            
             renderBoard();
         }
 
@@ -554,14 +594,21 @@
                 state.sections = parseMarkdown(text);
                 
                 // Restore UI state
-                if (state.currentSectionIndex === -1 && state.filePath) {
+                if (state.filePath) {
                     const key = `kbtd:${state.filePath}`;
                     const stored = localStorage.getItem(key);
                     if (stored) {
                         try {
                             const uiState = JSON.parse(stored);
-                            const idx = state.sections.findIndex(s => s.name === uiState.currentSection);
-                            if (idx !== -1) state.currentSectionIndex = idx;
+                            
+                            if (state.currentSectionIndex === -1) {
+                                const idx = state.sections.findIndex(s => s.name === uiState.currentSection);
+                                if (idx !== -1) state.currentSectionIndex = idx;
+                            }
+                            
+                            if (uiState.showCompleted !== undefined) {
+                                state.showCompleted = uiState.showCompleted;
+                            }
                         } catch (e) { console.error(e); }
                     }
                 }
@@ -716,6 +763,10 @@
         document.getElementById('back-btn').onclick = () => {
             state.currentSectionIndex = -1;
             renderSectionPicker();
+        };
+
+        document.getElementById('toggle-completed-btn').onclick = () => {
+            toggleShowCompleted();
         };
 
         document.getElementById('change-file-btn').onclick = () => {
