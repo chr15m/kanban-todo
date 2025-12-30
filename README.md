@@ -1,5 +1,9 @@
 A Kanban editor for your TODO.md Markdown file, in a single `index.html` file.
 
+Launch it from the command line: `kbtd TODO.md`.
+
+It will open Chrome/Edge browser in app/kiosk mode with the running web app.
+
 ## Format
 
 ```
