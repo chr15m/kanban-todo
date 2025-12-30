@@ -421,19 +421,53 @@
             await writeFile(lines.join('\n'));
         }
 
-        async function moveLineInFile(fromLine, toLine) {
-            console.log('moveLineInFile: from line', fromLine, 'to line', toLine);
+        async function moveLineInFile(fromLine, toLine, targetColumnIsEmpty) {
+            console.log('moveLineInFile: from line', fromLine, 'to line', toLine, 'targetColumnIsEmpty:', targetColumnIsEmpty);
             const file = await state.fileHandle.getFile();
             const text = await file.text();
             const lines = text.split('\n');
             
-            console.log('Before move, line', fromLine, '=', lines[fromLine]);
-            console.log('Before move, line', toLine, '=', lines[toLine]);
+            console.log('Before move, source line', fromLine, '=', lines[fromLine]);
+            console.log('Before move, target line', toLine, '=', lines[toLine]);
             
             const [movedLine] = lines.splice(fromLine, 1);
-            lines.splice(toLine, 0, movedLine);
             
-            console.log('After move, line', toLine, '=', lines[toLine]);
+            if (targetColumnIsEmpty) {
+                console.log('Moving to empty column - ensuring blank lines before and after');
+                
+                if (toLine < lines.length && lines[toLine].trim() === '') {
+                    lines.splice(toLine, 0, movedLine);
+                } else {
+                    lines.splice(toLine, 0, '', movedLine);
+                }
+                
+                const afterLine = toLine + (lines[toLine].trim() === '' ? 2 : 1);
+                if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
+                    lines.splice(afterLine, 0, '');
+                }
+            } else {
+                console.log('Moving to non-empty column');
+                
+                if (toLine > 0 && lines[toLine - 1].trim() === '') {
+                    console.log('Line before target is blank, replacing it');
+                    lines[toLine - 1] = movedLine;
+                } else {
+                    console.log('Inserting at target position');
+                    lines.splice(toLine, 0, movedLine);
+                }
+                
+                const movedLineIndex = toLine > 0 && lines[toLine - 1] === movedLine ? toLine - 1 : toLine;
+                const afterLine = movedLineIndex + 1;
+                if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
+                    console.log('Ensuring blank line after moved item at line', afterLine);
+                    lines.splice(afterLine, 0, '');
+                }
+            }
+            
+            console.log('After move, lines around target:');
+            for (let i = Math.max(0, toLine - 2); i <= Math.min(lines.length - 1, toLine + 2); i++) {
+                console.log(`  line ${i}: "${lines[i]}"`);
+            }
             
             await writeFile(lines.join('\n'));
         }
@@ -660,8 +694,10 @@
             
             console.log('Target column:', targetColumn.name, 'headerLineNumber=', targetColumn.headerLineNumber);
             
+            const targetColumnIsEmpty = targetColumn.cards.length === 0;
             let targetLineNumber;
-            if (targetColumn.cards.length === 0) {
+            
+            if (targetColumnIsEmpty) {
                 targetLineNumber = targetColumn.headerLineNumber + 1;
                 console.log('Empty column, inserting after header at line', targetLineNumber);
             } else {
@@ -673,7 +709,7 @@
                 console.log('Non-empty column, inserting after last card at line', targetLineNumber);
             }
             
-            await moveLineInFile(sourceLineNumber, targetLineNumber);
+            await moveLineInFile(sourceLineNumber, targetLineNumber, targetColumnIsEmpty);
             
             dragSource = null;
             return false;
