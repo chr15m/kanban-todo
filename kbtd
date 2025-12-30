@@ -61,6 +61,15 @@ fi
 
 # --- Path Resolution ---
 
+# Create file if it doesn't exist (but only if directory exists)
+if [[ ! -f "$FILE_PATH" ]]; then
+    DIR_PATH=$(dirname "$FILE_PATH")
+    if [[ ! -d "$DIR_PATH" ]]; then
+        error_exit "Directory does not exist: $DIR_PATH"
+    fi
+    touch "$FILE_PATH"
+fi
+
 # Resolve absolute path
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     ABS_PATH=$(realpath "$FILE_PATH")
