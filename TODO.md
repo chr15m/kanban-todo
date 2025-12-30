@@ -2,16 +2,17 @@
 
 ## TODO
 
-- [ ] Ability to create, move, remove columns.
 - [ ] Ability to create a project on the projects select page, including if TODO.md is empty.
-- [ ] Plus button in the columns to add a new item, with text input.
+- [ ] Ability to create, move, remove columns.
 - [ ] Minimize the number of times the user is asked for access. If possible ask for all the access required at one time.
+- [ ] Plus button in the columns to add a new item, with text input.
 
 ## In progress
 
 
 ## Done
 
+- [x] Moving cards around janks the file.
 - [x] When dragging between columns we should show the insertion point and insert the card at that point.
 - [x] Dropdown for setting the card as checked/unchecked.
 - [x] Make it look more the makesprite/concrete.css theme.

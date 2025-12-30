@@ -467,9 +467,11 @@
             const section = state.sections[state.currentSectionIndex];
             const targetColumn = section.columns[targetColumnIndex];
             const targetColumnIsEmpty = targetColumn.cards.length === 0;
+            const isInsertingAtBottom = insertPosition === targetColumn.cards.length;
             
             console.log('Before move, source line', fromLine, '=', lines[fromLine]);
             console.log('Target column is empty:', targetColumnIsEmpty);
+            console.log('Inserting at bottom:', isInsertingAtBottom);
             
             const [movedLine] = lines.splice(fromLine, 1);
             
@@ -499,11 +501,6 @@
                     }
                     
                     lines.splice(actualInsertLine, 0, movedLine);
-                    
-                    const afterLine = actualInsertLine + 1;
-                    if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
-                        lines.splice(afterLine, 0, '');
-                    }
                 } else {
                     console.log('Inserting at position', insertPosition);
                     const cardBefore = targetColumn.cards[insertPosition - 1];
@@ -524,11 +521,13 @@
                         lines.splice(actualInsertLine, 0, movedLine);
                     }
                     
-                    const movedLineIndex = lines[actualInsertLine - 1] === movedLine ? actualInsertLine - 1 : actualInsertLine;
-                    const afterLine = movedLineIndex + 1;
-                    if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
-                        console.log('Ensuring blank line after moved item at line', afterLine);
-                        lines.splice(afterLine, 0, '');
+                    if (isInsertingAtBottom) {
+                        const movedLineIndex = lines[actualInsertLine - 1] === movedLine ? actualInsertLine - 1 : actualInsertLine;
+                        const afterLine = movedLineIndex + 1;
+                        if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
+                            console.log('Inserting at bottom - ensuring blank line after moved item at line', afterLine);
+                            lines.splice(afterLine, 0, '');
+                        }
                     }
                 }
             }
