@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KBTD</title>
+    <style>
+        :root {
+            --fg: #ffe;
+            --bg: #112;
+            --shade: #889;
+            --radius: 4px;
+            --card-bg: #223;
+            --column-bg: #1a1a2a;
+            --font-family: Helvetica, Arial, sans-serif;
+        }
+
+        html {
+            font-size: 1.25rem;
+            box-sizing: border-box;
+        }
+
+        *, ::after, ::before {
+            box-sizing: inherit;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: var(--font-family);
+            padding: 1em;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        button {
+            display: inline-block;
+            padding: .5rem 1rem;
+            font-size: 1rem;
+            background: var(--fg);
+            color: var(--bg);
+            border: .1rem solid var(--fg);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-family: var(--font-family);
+            font-weight: bold;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            background: var(--shade);
+            border-color: var(--shade);
+            opacity: 0.7;
+        }
+
+        h1, h2, h3 { margin-top: 0; }
+
+        /* Layouts */
+        #app {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .center-content {
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            gap: 1.5em;
+        }
+
+        /* Kanban Board */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1em;
+            border-bottom: 1px solid var(--shade);
+            margin-bottom: 1em;
+            flex-shrink: 0;
+        }
+
+        .board {
+            display: flex;
+            gap: 1em;
+            overflow-x: auto;
+            height: 100%;
+            align-items: flex-start;
+            padding-bottom: 1em;
+        }
+
+        .column {
+            background: var(--column-bg);
+            border-radius: var(--radius);
+            min-width: 320px;
+            max-width: 320px;
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+            border: 1px solid var(--shade);
+            flex-shrink: 0;
+        }
+
+        .column-header {
+            padding: 0.75em;
+            font-weight: bold;
+            border-bottom: 1px solid var(--shade);
+            background: rgba(255,255,255,0.05);
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+
+        .card-list {
+            padding: 0.5em;
+            overflow-y: auto;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5em;
+            min-height: 100px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 0.75em;
+            border-radius: var(--radius);
+            border: 1px solid var(--shade);
+            cursor: grab;
+            user-select: none;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .card:hover {
+            border-color: var(--fg);
+        }
+
+        .card:active {
+            cursor: grabbing;
+        }
+
+        .card.completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .card.dragging {
+            opacity: 0.5;
+            border: 1px dashed var(--fg);
+        }
+
+        /* Section Picker */
+        .section-list {
+            list-style: none;
+            padding: 0;
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5em;
+        }
+
+        .section-btn {
+            width: 100%;
+            text-align: left;
+            padding: 1em;
+            background: var(--column-bg);
+            color: var(--fg);
+            border: 1px solid var(--shade);
+        }
+
+        .section-btn:hover {
+            border-color: var(--fg);
+        }
+
+        .error {
+            color: #ff6b6b;
+            background: rgba(255, 0, 0, 0.1);
+            padding: 1em;
+            border-radius: var(--radius);
+            border: 1px solid #ff6b6b;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--shade);
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--fg);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Landing Screen -->
+        <div id="landing-screen" class="screen center-content">
+            <h1>KBTD</h1>
+            <p>Kanban TODO - Markdown based task management</p>
+            <p>To get started, open a Markdown file containing your tasks.</p>
+            <button id="open-file-btn">Open TODO.md</button>
+            <div id="landing-error" class="error" style="display:none"></div>
+        </div>
+
+        <!-- Permission Screen -->
+        <div id="permission-screen" class="screen center-content">
+            <h1>Permission Required</h1>
+            <p>KBTD needs permission to view and edit your file.</p>
+            <button id="grant-permission-btn">Grant Access</button>
+        </div>
+
+        <!-- Section Picker Screen -->
+        <div id="section-screen" class="screen center-content">
+            <h1>Select Project</h1>
+            <ul id="section-list" class="section-list"></ul>
+            <button id="change-file-btn" style="margin-top: 1em">Change File</button>
+        </div>
+
+        <!-- Board Screen -->
+        <div id="board-screen" class="screen">
+            <header>
+                <h2 id="board-title" style="margin:0">Project Name</h2>
+                <button id="back-btn">Back to Projects</button>
+            </header>
+            <div id="board-container" class="board"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- Constants & State ---
+        const DB_NAME = 'kbtd';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'fileHandles';
+
+        let state = {
+            fileHandle: null,
+            filePath: null,
+            sections: [], // Parsed data
+            currentSectionIndex: -1,
+            lastModified: 0
+        };
+
+        // --- IndexedDB Helper ---
+        const dbPromise = new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+        });
+
+        async function getFileHandle(path) {
+            const db = await dbPromise;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.get(path);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function storeFileHandle(path, handle) {
+            const db = await dbPromise;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.put(handle, path);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // --- Markdown Parsing & Serialization ---
+
+        function parseMarkdown(text) {
+            const lines = text.split('\n');
+            const sections = [];
+            let currentSection = null;
+            let currentColumn = null;
+            let currentCard = null;
+
+            // Helper to finalize current card
+            const finishCard = () => {
+                if (currentCard) {
+                    if (currentColumn) {
+                        currentColumn.cards.push(currentCard);
+                    }
+                    currentCard = null;
+                }
+            };
+
+            for (let line of lines) {
+                // H1 - New Section
+                if (line.startsWith('# ')) {
+                    finishCard();
+                    currentSection = {
+                        name: line.substring(2).trim(),
+                        columns: []
+                    };
+                    sections.push(currentSection);
+                    currentColumn = null;
+                }
+                // H2 - New Column (only if inside a section)
+                else if (line.startsWith('## ') && currentSection) {
+                    finishCard();
+                    currentColumn = {
+                        name: line.substring(3).trim(),
+                        cards: []
+                    };
+                    currentSection.columns.push(currentColumn);
+                }
+                // Task
+                else if ((line.trim().startsWith('- [ ]') || line.trim().startsWith('- [x]')) && currentColumn) {
+                    finishCard();
+                    const isCompleted = line.trim().startsWith('- [x]');
+                    const textStart = line.indexOf(']') + 2;
+                    const text = line.substring(textStart).trim();
+                    
+                    currentCard = {
+                        text: text,
+                        completed: isCompleted,
+                        nestedLines: []
+                    };
+                }
+                // Nested content or other content
+                else {
+                    if (currentCard) {
+                        currentCard.nestedLines.push(line);
+                    }
+                    // Ignore content outside of tasks for now, as per spec "ignored"
+                }
+            }
+            finishCard();
+            return sections;
+        }
+
+        function serializeToMarkdown(sections) {
+            let output = [];
+            
+            for (const section of sections) {
+                output.push(`# ${section.name}`);
+                output.push(''); // Empty line after header
+                
+                for (const column of section.columns) {
+                    output.push(`## ${column.name}`);
+                    output.push('');
+                    
+                    for (const card of column.cards) {
+                        const check = card.completed ? 'x' : ' ';
+                        output.push(`- [${check}] ${card.text}`);
+                        if (card.nestedLines && card.nestedLines.length > 0) {
+                            output.push(...card.nestedLines);
+                        }
+                    }
+                    output.push('');
+                }
+            }
+            
+            // Join and ensure single newline at end
+            return output.join('\n').trim() + '\n';
+        }
+
+        // --- UI Rendering ---
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function renderSectionPicker() {
+            const list = document.getElementById('section-list');
+            list.innerHTML = '';
+            
+            state.sections.forEach((section, index) => {
+                const li = document.createElement('li');
+                const btn = document.createElement('button');
+                btn.className = 'section-btn';
+                btn.textContent = section.name;
+                btn.onclick = () => selectSection(index);
+                li.appendChild(btn);
+                list.appendChild(li);
+            });
+            
+            showScreen('section-screen');
+        }
+
+        function renderBoard() {
+            const section = state.sections[state.currentSectionIndex];
+            if (!section) return renderSectionPicker();
+
+            document.getElementById('board-title').textContent = section.name;
+            const container = document.getElementById('board-container');
+            container.innerHTML = '';
+
+            section.columns.forEach((column, colIndex) => {
+                const colDiv = document.createElement('div');
+                colDiv.className = 'column';
+                colDiv.dataset.colIndex = colIndex;
+                
+                // Drag over/drop handlers for column
+                colDiv.ondragover = handleDragOver;
+                colDiv.ondrop = (e) => handleDrop(e, colIndex);
+
+                const header = document.createElement('div');
+                header.className = 'column-header';
+                header.textContent = column.name;
+                colDiv.appendChild(header);
+
+                const cardList = document.createElement('div');
+                cardList.className = 'card-list';
+                
+                column.cards.forEach((card, cardIndex) => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = `card ${card.completed ? 'completed' : ''}`;
+                    cardDiv.textContent = card.text;
+                    cardDiv.draggable = true;
+                    
+                    // Click to toggle
+                    cardDiv.onclick = () => toggleCard(colIndex, cardIndex);
+                    
+                    // Drag handlers
+                    cardDiv.ondragstart = (e) => handleDragStart(e, colIndex, cardIndex);
+                    cardDiv.ondragend = handleDragEnd;
+
+                    cardList.appendChild(cardDiv);
+                });
+
+                colDiv.appendChild(cardList);
+                container.appendChild(colDiv);
+            });
+
+            showScreen('board-screen');
+        }
+
+        // --- Actions ---
+
+        async function selectSection(index) {
+            state.currentSectionIndex = index;
+            // Persist selection
+            if (state.filePath) {
+                const key = `kbtd:${state.filePath}`;
+                const uiState = { currentSection: state.sections[index].name };
+                localStorage.setItem(key, JSON.stringify(uiState));
+            }
+            renderBoard();
+        }
+
+        async function toggleCard(colIndex, cardIndex) {
+            const section = state.sections[state.currentSectionIndex];
+            const card = section.columns[colIndex].cards[cardIndex];
+            card.completed = !card.completed;
+            await saveFile();
+            renderBoard();
+        }
+
+        // --- Drag and Drop ---
+
+        let dragSource = null; // { colIndex, cardIndex }
+
+        function handleDragStart(e, colIndex, cardIndex) {
+            dragSource = { colIndex, cardIndex };
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            // Required for Firefox
+            e.dataTransfer.setData('text/plain', JSON.stringify(dragSource));
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            dragSource = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        async function handleDrop(e, targetColIndex) {
+            e.stopPropagation();
+            
+            if (!dragSource) return;
+            
+            const { colIndex: sourceColIndex, cardIndex: sourceCardIndex } = dragSource;
+            
+            // Don't do anything if dropped in same place (logic can be improved to reorder within column)
+            // For now, just append to end of target column if different column, or reorder if same.
+            
+            const section = state.sections[state.currentSectionIndex];
+            const sourceCol = section.columns[sourceColIndex];
+            const targetCol = section.columns[targetColIndex];
+            
+            // Remove from source
+            const [card] = sourceCol.cards.splice(sourceCardIndex, 1);
+            
+            // If dropping on the column itself, append to end.
+            // To implement reordering within list, we'd need to calculate index based on Y position.
+            // For MVP/Spec "Drag and drop cards between columns", appending is sufficient.
+            // But let's try to find insertion point if dropped on a card.
+            
+            // Simple implementation: Append to target column
+            targetCol.cards.push(card);
+            
+            await saveFile();
+            renderBoard();
+            return false;
+        }
+
+        // --- File Operations ---
+
+        async function loadFile() {
+            try {
+                const file = await state.fileHandle.getFile();
+                state.lastModified = file.lastModified;
+                const text = await file.text();
+                state.sections = parseMarkdown(text);
+                
+                // Restore UI state
+                if (state.currentSectionIndex === -1 && state.filePath) {
+                    const key = `kbtd:${state.filePath}`;
+                    const stored = localStorage.getItem(key);
+                    if (stored) {
+                        try {
+                            const uiState = JSON.parse(stored);
+                            const idx = state.sections.findIndex(s => s.name === uiState.currentSection);
+                            if (idx !== -1) state.currentSectionIndex = idx;
+                        } catch (e) { console.error(e); }
+                    }
+                }
+
+                if (state.currentSectionIndex !== -1 && state.sections[state.currentSectionIndex]) {
+                    renderBoard();
+                } else {
+                    renderSectionPicker();
+                }
+            } catch (err) {
+                console.error('Error loading file:', err);
+                alert('Error loading file. See console.');
+            }
+        }
+
+        async function saveFile() {
+            try {
+                const text = serializeToMarkdown(state.sections);
+                const writable = await state.fileHandle.createWritable();
+                await writable.write(text);
+                await writable.close();
+                
+                // Update lastModified to avoid reload loop
+                const file = await state.fileHandle.getFile();
+                state.lastModified = file.lastModified;
+            } catch (err) {
+                console.error('Error saving file:', err);
+                alert('Error saving file.');
+            }
+        }
+
+        async function checkPermission(handle) {
+            const opts = { mode: 'readwrite' };
+            if ((await handle.queryPermission(opts)) === 'granted') {
+                return true;
+            }
+            if ((await handle.requestPermission(opts)) === 'granted') {
+                return true;
+            }
+            return false;
+        }
+
+        // --- Initialization & Polling ---
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            state.filePath = params.get('file');
+
+            if (!state.filePath) {
+                showScreen('landing-screen');
+                return;
+            }
+
+            try {
+                const handle = await getFileHandle(state.filePath);
+                if (handle) {
+                    state.fileHandle = handle;
+                    // Check permission
+                    const perm = await handle.queryPermission({ mode: 'readwrite' });
+                    if (perm === 'granted') {
+                        await loadFile();
+                        startPolling();
+                    } else {
+                        showScreen('permission-screen');
+                    }
+                } else {
+                    // No handle found for this path, show picker to associate
+                    // Actually spec says: "If no handle: Show file picker button"
+                    // But we are at a specific URL ?file=...
+                    // The user expects to open THAT file.
+                    // We can't open it automatically without a handle.
+                    // So we ask them to pick it.
+                    showScreen('landing-screen');
+                    document.getElementById('landing-error').textContent = 
+                        `Please select the file: ${state.filePath}`;
+                    document.getElementById('landing-error').style.display = 'block';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function startPolling() {
+            setInterval(async () => {
+                if (!state.fileHandle) return;
+                try {
+                    const file = await state.fileHandle.getFile();
+                    if (file.lastModified > state.lastModified) {
+                        console.log('File changed externally, reloading...');
+                        await loadFile();
+                    }
+                } catch (e) {
+                    console.error('Polling error:', e);
+                }
+            }, 250);
+        }
+
+        // --- Event Listeners ---
+
+        document.getElementById('open-file-btn').onclick = async () => {
+            try {
+                const [handle] = await window.showOpenFilePicker({
+                    id: 'kbtd-todo-file',
+                    mode: 'readwrite',
+                    types: [{
+                        description: 'Markdown files',
+                        accept: { 'text/markdown': ['.md'] }
+                    }]
+                });
+                
+                state.fileHandle = handle;
+                
+                // If we didn't have a filePath (landing page), we don't have one to store against yet.
+                // But wait, the spec says: "Parse ?file= from URL query string".
+                // If no file param, we are on landing page.
+                // If we pick a file here, we should probably reload with the file param?
+                // Or just proceed.
+                // Spec says: "On file picker success: Store handle in IndexedDB -> Load and parse file".
+                // But we need a key for IndexedDB.
+                // If we are in "No file associated" state (landing page), we might not have a path.
+                // However, the shell script always launches with ?file=.
+                // If the user just opens the HTML file directly, they might not have ?file=.
+                // In that case, we can't really persist the handle effectively for the "next time" unless we know the path.
+                // But `showOpenFilePicker` returns a handle. We can get the name, but not the full path (security).
+                // So if we are running without ?file=, we can just run in "anonymous" mode or similar.
+                // BUT, the spec assumes `kbtd` launcher usage which provides `?file=`.
+                
+                if (state.filePath) {
+                    await storeFileHandle(state.filePath, handle);
+                }
+                
+                await loadFile();
+                startPolling();
+                
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error(err);
+                    alert('Error opening file');
+                }
+            }
+        };
+
+        document.getElementById('grant-permission-btn').onclick = async () => {
+            if (state.fileHandle) {
+                if (await checkPermission(state.fileHandle)) {
+                    await loadFile();
+                    startPolling();
+                }
+            }
+        };
+
+        document.getElementById('back-btn').onclick = () => {
+            state.currentSectionIndex = -1;
+            renderSectionPicker();
+        };
+
+        document.getElementById('change-file-btn').onclick = () => {
+            // To change file, we basically want to pick a new one.
+            // If we are in the app, we might want to clear state.
+            // For now, just reload the page without params? Or show picker.
+            // Spec doesn't explicitly define "Change File" behavior other than "Back to section picker".
+            // But if I want to open a DIFFERENT file?
+            // I'll just trigger the open file flow.
+            document.getElementById('open-file-btn').click();
+        };
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+#!/bin/bash
+
+# KBTD Launcher
+# See SPEC.md for details
+
+set -e
+
+# --- Helper Functions ---
+
+show_help() {
+    echo "Usage: kbtd [OPTIONS] <path-to-markdown-file>"
+    echo ""
+    echo "Options:"
+    echo "  --browser    Open in existing browser instead of app mode"
+    echo "  --help       Show help message"
+}
+
+error_exit() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+# --- Argument Parsing ---
+
+MODE="app"
+FILE_PATH=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --browser)
+            MODE="browser"
+            shift
+            ;;
+        --help)
+            show_help
+            exit 0
+            ;;
+        -*)
+            echo "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+        *)
+            if [[ -z "$FILE_PATH" ]]; then
+                FILE_PATH="$1"
+            else
+                echo "Error: Multiple files specified"
+                show_help
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$FILE_PATH" ]]; then
+    echo "Error: No file specified"
+    show_help
+    exit 1
+fi
+
+# --- Path Resolution ---
+
+# Resolve absolute path
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    ABS_PATH=$(realpath "$FILE_PATH")
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS doesn't always have realpath
+    if command -v realpath >/dev/null 2>&1; then
+        ABS_PATH=$(realpath "$FILE_PATH")
+    else
+        # Fallback for macOS
+        ABS_PATH=$(cd "$(dirname "$FILE_PATH")"; pwd)/$(basename "$FILE_PATH")
+    fi
+else
+    # Fallback
+    ABS_PATH=$(readlink -f "$FILE_PATH")
+fi
+
+if [[ ! -f "$ABS_PATH" ]]; then
+    error_exit "File not found: $ABS_PATH"
+fi
+
+# --- Browser Detection ---
+
+BROWSER_BIN=""
+
+# Check $BROWSER if set and looks like chromium
+if [[ -n "$BROWSER" ]]; then
+    if [[ "$BROWSER" == *"chrome"* ]] || [[ "$BROWSER" == *"chromium"* ]] || [[ "$BROWSER" == *"edge"* ]]; then
+        BROWSER_BIN="$BROWSER"
+    fi
+fi
+
+# Check common names in PATH
+if [[ -z "$BROWSER_BIN" ]]; then
+    for cmd in google-chrome chromium chromium-browser microsoft-edge; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            BROWSER_BIN="$cmd"
+            break
+        fi
+    done
+fi
+
+# Check macOS paths
+if [[ -z "$BROWSER_BIN" && "$OSTYPE" == "darwin"* ]]; then
+    if [[ -d "/Applications/Google Chrome.app" ]]; then
+        BROWSER_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    elif [[ -d "/Applications/Chromium.app" ]]; then
+        BROWSER_BIN="/Applications/Chromium.app/Contents/MacOS/Chromium"
+    elif [[ -d "/Applications/Microsoft Edge.app" ]]; then
+        BROWSER_BIN="/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+    fi
+fi
+
+# Check WSL paths (simplified check)
+if [[ -z "$BROWSER_BIN" && -n "$WSL_DISTRO_NAME" ]]; then
+    # This is a bit tricky as we need to call the windows exe.
+    # For now, let's assume the user has configured a browser in WSL or we fail.
+    # But spec mentions: /mnt/c/Program Files/Google/Chrome/Application/chrome.exe
+    CHROME_WIN="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
+    if [[ -f "$CHROME_WIN" ]]; then
+        BROWSER_BIN="$CHROME_WIN"
+    fi
+fi
+
+if [[ -z "$BROWSER_BIN" ]]; then
+    error_exit "No compatible Chromium-based browser found. Please install Google Chrome, Chromium, or Microsoft Edge."
+fi
+
+# --- Launch ---
+
+# Determine base URL
+# Assuming the script is in the same directory as index.html or we serve it.
+# The spec says: "Launch browser with URL: {base_url}?file={absolute_path}"
+# And "URL Configuration: Development: http://localhost:8000"
+# It doesn't say the script starts the server. It assumes one is running?
+# "You DO NOT need to tell the user... How to run a webserver"
+# But the script needs to know the URL.
+# Spec: "Production: Configurable via $KBTD_URL environment variable or hardcoded default"
+
+BASE_URL="${KBTD_URL:-http://localhost:8000}"
+TARGET_URL="$BASE_URL/?file=$ABS_PATH"
+
+echo "Opening $ABS_PATH in KBTD..."
+
+if [[ "$MODE" == "app" ]]; then
+    USER_DATA_DIR="./.kbtd-chrome-data"
+    mkdir -p "$USER_DATA_DIR"
+    
+    "$BROWSER_BIN" \
+        --user-data-dir="$USER_DATA_DIR" \
+        --app="$TARGET_URL" &
+else
+    "$BROWSER_BIN" --new-window "$TARGET_URL" &
+fi
+
+exit 0
