@@ -227,6 +227,62 @@
             opacity: 1;
         }
 
+        .add-column {
+            min-width: 60px;
+            max-width: 60px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 0.75em;
+        }
+
+        .add-column-btn {
+            width: 40px;
+            height: 40px;
+            font-size: 1.5rem;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .add-column-form {
+            display: none;
+            flex-direction: column;
+            gap: 0.5em;
+            width: 200px;
+            padding: 0.5em;
+            background: var(--bg);
+            border: .1rem solid var(--shade);
+            border-radius: var(--radius);
+            position: absolute;
+            right: 70px;
+            top: 0;
+            z-index: 10;
+        }
+
+        .add-column-form.active {
+            display: flex;
+        }
+
+        .add-column-form input {
+            margin: 0;
+        }
+
+        .add-column-form-buttons {
+            display: flex;
+            gap: 0.5em;
+        }
+
+        .add-column-form-buttons button {
+            flex: 1;
+            padding: 0.3rem 0.5rem;
+            font-size: 0.9rem;
+        }
+
         /* Section Picker */
         .section-list {
             list-style: none;
@@ -416,6 +472,7 @@
                     finishCard();
                     currentSection = {
                         name: line.substring(2).trim(),
+                        headerLineNumber: i,
                         columns: []
                     };
                     sections.push(currentSection);
@@ -594,6 +651,46 @@
             if (newSectionIndex !== -1) {
                 await selectSection(newSectionIndex);
             }
+        }
+
+        async function createColumn(columnName) {
+            console.log('Creating column:', columnName);
+            const file = await state.fileHandle.getFile();
+            const text = await file.text();
+            const lines = text.split('\n');
+            
+            const section = state.sections[state.currentSectionIndex];
+            
+            let insertLine;
+            if (section.columns.length === 0) {
+                insertLine = section.headerLineNumber + 1;
+            } else {
+                const lastColumn = section.columns[section.columns.length - 1];
+                insertLine = lastColumn.headerLineNumber + 1;
+                
+                while (insertLine < lines.length) {
+                    const line = lines[insertLine];
+                    if (line.startsWith('# ') || line.startsWith('## ')) {
+                        break;
+                    }
+                    insertLine++;
+                }
+            }
+            
+            console.log('Inserting new column at line', insertLine);
+            
+            if (insertLine > 0 && lines[insertLine - 1].trim() !== '') {
+                lines.splice(insertLine, 0, '');
+                insertLine++;
+            }
+            
+            lines.splice(insertLine, 0, `## ${columnName}`);
+            
+            if (insertLine + 1 >= lines.length || lines[insertLine + 1].trim() !== '') {
+                lines.splice(insertLine + 1, 0, '');
+            }
+            
+            await writeFile(lines.join('\n'));
         }
 
         async function loadFile() {
@@ -775,7 +872,78 @@
                 container.appendChild(colDiv);
             });
 
+            const addColumnDiv = document.createElement('div');
+            addColumnDiv.className = 'add-column';
+            
+            const addBtn = document.createElement('button');
+            addBtn.className = 'add-column-btn';
+            addBtn.textContent = '+';
+            addBtn.title = 'Add column';
+            addBtn.onclick = () => {
+                const form = addColumnDiv.querySelector('.add-column-form');
+                form.classList.toggle('active');
+                if (form.classList.contains('active')) {
+                    form.querySelector('input').focus();
+                }
+            };
+            addColumnDiv.appendChild(addBtn);
+            
+            const form = document.createElement('div');
+            form.className = 'add-column-form';
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'Column name...';
+            input.onkeypress = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleCreateColumn(input, form);
+                }
+            };
+            form.appendChild(input);
+            
+            const buttons = document.createElement('div');
+            buttons.className = 'add-column-form-buttons';
+            
+            const createBtn = document.createElement('button');
+            createBtn.textContent = 'Create';
+            createBtn.onclick = () => handleCreateColumn(input, form);
+            buttons.appendChild(createBtn);
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.onclick = () => {
+                form.classList.remove('active');
+                input.value = '';
+            };
+            buttons.appendChild(cancelBtn);
+            
+            form.appendChild(buttons);
+            addColumnDiv.appendChild(form);
+            
+            container.appendChild(addColumnDiv);
+
             showScreen('board-screen');
+        }
+
+        async function handleCreateColumn(input, form) {
+            const columnName = input.value.trim();
+            
+            if (!columnName) {
+                alert('Please enter a column name');
+                return;
+            }
+            
+            const section = state.sections[state.currentSectionIndex];
+            if (section.columns.some(c => c.name === columnName)) {
+                alert('A column with this name already exists');
+                return;
+            }
+            
+            form.classList.remove('active');
+            input.value = '';
+            
+            await createColumn(columnName);
         }
 
         // --- Actions ---
