@@ -277,7 +277,7 @@
         let state = {
             fileHandle: null,
             filePath: null,
-            sections: [], // Parsed data
+            sections: [],
             currentSectionIndex: -1,
             lastModified: 0,
             showCompleted: false
@@ -318,7 +318,7 @@
             });
         }
 
-        // --- Markdown Parsing & Serialization ---
+        // --- Markdown Parsing ---
 
         function parseMarkdown(text) {
             const lines = text.split('\n');
@@ -327,7 +327,6 @@
             let currentColumn = null;
             let currentCard = null;
 
-            // Helper to finalize current card
             const finishCard = () => {
                 if (currentCard) {
                     if (currentColumn) {
@@ -337,8 +336,9 @@
                 }
             };
 
-            for (let line of lines) {
-                // H1 - New Section
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
                 if (line.startsWith('# ')) {
                     finishCard();
                     currentSection = {
@@ -348,16 +348,15 @@
                     sections.push(currentSection);
                     currentColumn = null;
                 }
-                // H2 - New Column (only if inside a section)
                 else if (line.startsWith('## ') && currentSection) {
                     finishCard();
                     currentColumn = {
                         name: line.substring(3).trim(),
+                        headerLineNumber: i,
                         cards: []
                     };
                     currentSection.columns.push(currentColumn);
                 }
-                // Task
                 else if ((line.trim().startsWith('- [ ]') || line.trim().startsWith('- [x]')) && currentColumn) {
                     finishCard();
                     const isCompleted = line.trim().startsWith('- [x]');
@@ -367,45 +366,126 @@
                     currentCard = {
                         text: text,
                         completed: isCompleted,
+                        lineNumber: i,
+                        originalLine: line,
                         nestedLines: []
                     };
                 }
-                // Nested content or other content
                 else {
                     if (currentCard) {
                         currentCard.nestedLines.push(line);
                     }
-                    // Ignore content outside of tasks for now, as per spec "ignored"
                 }
             }
             finishCard();
             return sections;
         }
 
-        function serializeToMarkdown(sections) {
-            let output = [];
-            
-            for (const section of sections) {
-                output.push(`# ${section.name}`);
-                output.push(''); // Empty line after header
+        // --- File Operations ---
+
+        async function writeFile(text) {
+            try {
+                const writable = await state.fileHandle.createWritable();
+                await writable.write(text);
+                await writable.close();
+                console.log('File written successfully');
                 
-                for (const column of section.columns) {
-                    output.push(`## ${column.name}`);
-                    output.push('');
-                    
-                    for (const card of column.cards) {
-                        const check = card.completed ? 'x' : ' ';
-                        output.push(`- [${check}] ${card.text}`);
-                        if (card.nestedLines && card.nestedLines.length > 0) {
-                            output.push(...card.nestedLines);
-                        }
-                    }
-                    output.push('');
-                }
+                const file = await state.fileHandle.getFile();
+                state.lastModified = file.lastModified;
+                
+                reloadFromText(text);
+            } catch (err) {
+                console.error('Error writing file:', err);
+                alert('Error saving file.');
             }
+        }
+
+        function reloadFromText(text) {
+            console.log('Reloading from text after write');
+            state.sections = parseMarkdown(text);
+            console.log('Parsed sections:', state.sections);
             
-            // Join and ensure single newline at end
-            return output.join('\n').trim() + '\n';
+            if (state.currentSectionIndex !== -1 && state.sections[state.currentSectionIndex]) {
+                renderBoard();
+            } else {
+                renderSectionPicker();
+            }
+        }
+
+        async function updateLineInFile(lineNum, newText) {
+            console.log('updateLineInFile:', lineNum, newText);
+            const file = await state.fileHandle.getFile();
+            const text = await file.text();
+            const lines = text.split('\n');
+            lines[lineNum] = newText;
+            await writeFile(lines.join('\n'));
+        }
+
+        async function moveLineInFile(fromLine, toLine) {
+            console.log('moveLineInFile: from line', fromLine, 'to line', toLine);
+            const file = await state.fileHandle.getFile();
+            const text = await file.text();
+            const lines = text.split('\n');
+            
+            console.log('Before move, line', fromLine, '=', lines[fromLine]);
+            console.log('Before move, line', toLine, '=', lines[toLine]);
+            
+            const [movedLine] = lines.splice(fromLine, 1);
+            lines.splice(toLine, 0, movedLine);
+            
+            console.log('After move, line', toLine, '=', lines[toLine]);
+            
+            await writeFile(lines.join('\n'));
+        }
+
+        async function loadFile() {
+            try {
+                const file = await state.fileHandle.getFile();
+                state.lastModified = file.lastModified;
+                const text = await file.text();
+                state.sections = parseMarkdown(text);
+                
+                console.log('Parsed sections:', state.sections);
+                
+                if (state.filePath) {
+                    const key = `kbtd:${state.filePath}`;
+                    const stored = localStorage.getItem(key);
+                    if (stored) {
+                        try {
+                            const uiState = JSON.parse(stored);
+                            
+                            if (state.currentSectionIndex === -1) {
+                                const idx = state.sections.findIndex(s => s.name === uiState.currentSection);
+                                if (idx !== -1) state.currentSectionIndex = idx;
+                            }
+                            
+                            if (uiState.showCompleted !== undefined) {
+                                state.showCompleted = uiState.showCompleted;
+                            }
+                        } catch (e) { console.error(e); }
+                    }
+                }
+
+                if (state.currentSectionIndex !== -1 && state.sections[state.currentSectionIndex]) {
+                    renderBoard();
+                } else {
+                    renderSectionPicker();
+                }
+            } catch (err) {
+                console.error('Error loading file:', err);
+                alert('Error loading file. See console.');
+            }
+        }
+
+        async function checkPermission(handle) {
+            const opts = { mode: 'readwrite' };
+            if ((await handle.queryPermission(opts)) === 'granted') {
+                return true;
+            }
+            if ((await handle.requestPermission(opts)) === 'granted') {
+                return true;
+            }
+            return false;
         }
 
         // --- UI Rendering ---
@@ -449,7 +529,6 @@
                 colDiv.className = 'column';
                 colDiv.dataset.colIndex = colIndex;
                 
-                // Drag over/drop handlers for column
                 colDiv.ondragover = handleDragOver;
                 colDiv.ondrop = (e) => handleDrop(e, colIndex);
 
@@ -471,11 +550,23 @@
                     cardDiv.textContent = card.text;
                     cardDiv.draggable = true;
                     
-                    // Click to toggle
-                    cardDiv.onclick = () => toggleCard(colIndex, cardIndex);
+                    cardDiv.dataset.lineNumber = card.lineNumber;
+                    cardDiv.dataset.originalLine = card.originalLine;
+                    cardDiv.dataset.colIndex = colIndex;
+                    cardDiv.dataset.cardIndex = cardIndex;
                     
-                    // Drag handlers
-                    cardDiv.ondragstart = (e) => handleDragStart(e, colIndex, cardIndex);
+                    cardDiv.onclick = async () => {
+                        const lineNum = parseInt(cardDiv.dataset.lineNumber);
+                        const originalLine = cardDiv.dataset.originalLine;
+                        
+                        const newLine = originalLine.includes('- [x]')
+                            ? originalLine.replace('- [x]', '- [ ]')
+                            : originalLine.replace('- [ ]', '- [x]');
+                        
+                        await updateLineInFile(lineNum, newLine);
+                    };
+                    
+                    cardDiv.ondragstart = (e) => handleDragStart(e, cardDiv);
                     cardDiv.ondragend = handleDragEnd;
 
                     cardList.appendChild(cardDiv);
@@ -492,7 +583,6 @@
 
         async function selectSection(index) {
             state.currentSectionIndex = index;
-            // Persist selection
             if (state.filePath) {
                 const key = `kbtd:${state.filePath}`;
                 const uiState = { 
@@ -501,14 +591,6 @@
                 };
                 localStorage.setItem(key, JSON.stringify(uiState));
             }
-            renderBoard();
-        }
-
-        async function toggleCard(colIndex, cardIndex) {
-            const section = state.sections[state.currentSectionIndex];
-            const card = section.columns[colIndex].cards[cardIndex];
-            card.completed = !card.completed;
-            await saveFile();
             renderBoard();
         }
 
@@ -533,13 +615,16 @@
 
         // --- Drag and Drop ---
 
-        let dragSource = null; // { colIndex, cardIndex }
+        let dragSource = null;
 
-        function handleDragStart(e, colIndex, cardIndex) {
-            dragSource = { colIndex, cardIndex };
+        function handleDragStart(e, cardDiv) {
+            dragSource = {
+                lineNumber: parseInt(cardDiv.dataset.lineNumber),
+                colIndex: parseInt(cardDiv.dataset.colIndex),
+                cardIndex: parseInt(cardDiv.dataset.cardIndex)
+            };
             e.target.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
-            // Required for Firefox
             e.dataTransfer.setData('text/plain', JSON.stringify(dragSource));
         }
 
@@ -556,98 +641,41 @@
 
         async function handleDrop(e, targetColIndex) {
             e.stopPropagation();
+            e.preventDefault();
             
             if (!dragSource) return;
             
-            const { colIndex: sourceColIndex, cardIndex: sourceCardIndex } = dragSource;
+            const sourceColIndex = dragSource.colIndex;
+            const sourceLineNumber = dragSource.lineNumber;
             
-            // Don't do anything if dropped in same place (logic can be improved to reorder within column)
-            // For now, just append to end of target column if different column, or reorder if same.
+            console.log('handleDrop: sourceColIndex=', sourceColIndex, 'targetColIndex=', targetColIndex);
+            
+            if (sourceColIndex === targetColIndex) {
+                console.log('Same column, ignoring drop');
+                return;
+            }
             
             const section = state.sections[state.currentSectionIndex];
-            const sourceCol = section.columns[sourceColIndex];
-            const targetCol = section.columns[targetColIndex];
+            const targetColumn = section.columns[targetColIndex];
             
-            // Remove from source
-            const [card] = sourceCol.cards.splice(sourceCardIndex, 1);
+            console.log('Target column:', targetColumn.name, 'headerLineNumber=', targetColumn.headerLineNumber);
             
-            // If dropping on the column itself, append to end.
-            // To implement reordering within list, we'd need to calculate index based on Y position.
-            // For MVP/Spec "Drag and drop cards between columns", appending is sufficient.
-            // But let's try to find insertion point if dropped on a card.
-            
-            // Simple implementation: Append to target column
-            targetCol.cards.push(card);
-            
-            await saveFile();
-            renderBoard();
-            return false;
-        }
-
-        // --- File Operations ---
-
-        async function loadFile() {
-            try {
-                const file = await state.fileHandle.getFile();
-                state.lastModified = file.lastModified;
-                const text = await file.text();
-                state.sections = parseMarkdown(text);
-                
-                // Restore UI state
-                if (state.filePath) {
-                    const key = `kbtd:${state.filePath}`;
-                    const stored = localStorage.getItem(key);
-                    if (stored) {
-                        try {
-                            const uiState = JSON.parse(stored);
-                            
-                            if (state.currentSectionIndex === -1) {
-                                const idx = state.sections.findIndex(s => s.name === uiState.currentSection);
-                                if (idx !== -1) state.currentSectionIndex = idx;
-                            }
-                            
-                            if (uiState.showCompleted !== undefined) {
-                                state.showCompleted = uiState.showCompleted;
-                            }
-                        } catch (e) { console.error(e); }
-                    }
+            let targetLineNumber;
+            if (targetColumn.cards.length === 0) {
+                targetLineNumber = targetColumn.headerLineNumber + 1;
+                console.log('Empty column, inserting after header at line', targetLineNumber);
+            } else {
+                const lastCard = targetColumn.cards[targetColumn.cards.length - 1];
+                targetLineNumber = lastCard.lineNumber + 1;
+                if (lastCard.nestedLines.length > 0) {
+                    targetLineNumber += lastCard.nestedLines.length;
                 }
-
-                if (state.currentSectionIndex !== -1 && state.sections[state.currentSectionIndex]) {
-                    renderBoard();
-                } else {
-                    renderSectionPicker();
-                }
-            } catch (err) {
-                console.error('Error loading file:', err);
-                alert('Error loading file. See console.');
+                console.log('Non-empty column, inserting after last card at line', targetLineNumber);
             }
-        }
-
-        async function saveFile() {
-            try {
-                const text = serializeToMarkdown(state.sections);
-                const writable = await state.fileHandle.createWritable();
-                await writable.write(text);
-                await writable.close();
-                
-                // Update lastModified to avoid reload loop
-                const file = await state.fileHandle.getFile();
-                state.lastModified = file.lastModified;
-            } catch (err) {
-                console.error('Error saving file:', err);
-                alert('Error saving file.');
-            }
-        }
-
-        async function checkPermission(handle) {
-            const opts = { mode: 'readwrite' };
-            if ((await handle.queryPermission(opts)) === 'granted') {
-                return true;
-            }
-            if ((await handle.requestPermission(opts)) === 'granted') {
-                return true;
-            }
+            
+            await moveLineInFile(sourceLineNumber, targetLineNumber);
+            
+            dragSource = null;
             return false;
         }
 
@@ -666,7 +694,6 @@
                 const handle = await getFileHandle(state.filePath);
                 if (handle) {
                     state.fileHandle = handle;
-                    // Check permission
                     const perm = await handle.queryPermission({ mode: 'readwrite' });
                     if (perm === 'granted') {
                         await loadFile();
@@ -675,12 +702,6 @@
                         showScreen('permission-screen');
                     }
                 } else {
-                    // No handle found for this path, show picker to associate
-                    // Actually spec says: "If no handle: Show file picker button"
-                    // But we are at a specific URL ?file=...
-                    // The user expects to open THAT file.
-                    // We can't open it automatically without a handle.
-                    // So we ask them to pick it.
                     showScreen('landing-screen');
                     document.getElementById('landing-error').textContent = 
                         `Please select the file: ${state.filePath}`;
@@ -721,21 +742,6 @@
                 
                 state.fileHandle = handle;
                 
-                // If we didn't have a filePath (landing page), we don't have one to store against yet.
-                // But wait, the spec says: "Parse ?file= from URL query string".
-                // If no file param, we are on landing page.
-                // If we pick a file here, we should probably reload with the file param?
-                // Or just proceed.
-                // Spec says: "On file picker success: Store handle in IndexedDB -> Load and parse file".
-                // But we need a key for IndexedDB.
-                // If we are in "No file associated" state (landing page), we might not have a path.
-                // However, the shell script always launches with ?file=.
-                // If the user just opens the HTML file directly, they might not have ?file=.
-                // In that case, we can't really persist the handle effectively for the "next time" unless we know the path.
-                // But `showOpenFilePicker` returns a handle. We can get the name, but not the full path (security).
-                // So if we are running without ?file=, we can just run in "anonymous" mode or similar.
-                // BUT, the spec assumes `kbtd` launcher usage which provides `?file=`.
-                
                 if (state.filePath) {
                     await storeFileHandle(state.filePath, handle);
                 }
@@ -770,16 +776,9 @@
         };
 
         document.getElementById('change-file-btn').onclick = () => {
-            // To change file, we basically want to pick a new one.
-            // If we are in the app, we might want to clear state.
-            // For now, just reload the page without params? Or show picker.
-            // Spec doesn't explicitly define "Change File" behavior other than "Back to section picker".
-            // But if I want to open a DIFFERENT file?
-            // I'll just trigger the open file flow.
             document.getElementById('open-file-btn').click();
         };
 
-        // Start
         init();
 
     </script>
