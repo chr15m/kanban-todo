@@ -2,7 +2,6 @@
 
 ## TODO
 
-- [ ] Can we make the columns vertically fill the available space?
 - [ ] Minimize the number of times the user is asked for access. If possible ask for all the access required at one time.
 - [ ] Ability to rename columns.
 
@@ -11,6 +10,7 @@
 
 ## Done
 
+- [x] Can we make the columns vertically fill the available space?
 - [x] Plus button in the columns to add a new item, with text input.
 - [x] Ability to create columns.
 - [x] Moving cards around janks the file.

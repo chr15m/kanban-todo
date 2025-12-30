@@ -134,8 +134,8 @@
             display: flex;
             gap: 1em;
             overflow-x: auto;
-            height: 100%;
-            align-items: flex-start;
+            flex-grow: 1;
+            align-items: stretch;
             padding-bottom: 1em;
         }
 
@@ -147,7 +147,7 @@
             flex: 1 1 0;
             display: flex;
             flex-direction: column;
-            max-height: 100%;
+            height: 100%;
             border: .1rem solid var(--shade);
         }
 
@@ -155,6 +155,7 @@
             padding: 0.75em;
             font-weight: bold;
             border-bottom: .1rem solid var(--shade);
+            flex-shrink: 0;
         }
 
         .card-list {
@@ -165,7 +166,7 @@
             display: flex;
             flex-direction: column;
             gap: 0.5em;
-            min-height: 100px;
+            min-height: 0;
             position: relative;
         }
 
@@ -178,6 +179,7 @@
             user-select: none;
             word-wrap: break-word;
             position: relative;
+            flex-shrink: 0;
         }
 
         .card:hover {
@@ -221,6 +223,7 @@
             opacity: 0;
             transition: opacity 0.1s;
             pointer-events: none;
+            flex-shrink: 0;
         }
 
         .drop-indicator.active {
@@ -289,6 +292,7 @@
             flex-direction: column;
             gap: 0.5em;
             align-items: flex-end;
+            flex-shrink: 0;
         }
 
         .add-card-btn {
