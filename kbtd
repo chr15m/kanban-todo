@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# KBTD Launcher
-# See SPEC.md for details
+# kanban-todo launcher
 
 set -e
 

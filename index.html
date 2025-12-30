@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KBTD</title>
+    <title>Kanban TODO</title>
     <style>
         :root {
             --fg: #ffe;
@@ -82,7 +82,7 @@
         }
 
         h1 { font-size: 2em; }
-        h2 { font-size: 1.5em; }
+        h2 { font-size: 1.5em; margin-bottom: 0.5em; }
         h3 { font-size: 1.17em; }
         h1, h2, h3 { margin-top: 0; }
 
@@ -397,23 +397,40 @@
         p {
             line-height: 1.4;
         }
+
+        pre {
+            background: transparent;
+            border: .1rem solid var(--shade);
+            border-radius: var(--radius);
+            padding: 1em;
+            margin: 0.5em 0 1em 0;
+            overflow-x: auto;
+            text-align: left;
+        }
+
+        pre a {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
     <div id="app">
         <!-- Landing Screen -->
         <div id="landing-screen" class="screen center-content">
-            <h1>KBTD</h1>
-            <p>Kanban TODO - Markdown based task management</p>
+            <h1>Kanban TODO</h1>
+            <p>Markdown based task management</p>
             <p>To get started, open a Markdown file containing your tasks.</p>
             <button id="open-file-btn">Open TODO.md</button>
+            <h2>Install</h2>
+            <pre id="launcher-instructions-landing" style="display:none">kbtd # &lt;- right click and save as
+chmod 755 kbtd</pre>
             <div id="landing-error" class="error" style="display:none"></div>
         </div>
 
         <!-- Permission Screen -->
         <div id="permission-screen" class="screen center-content">
             <h1>Permission Required</h1>
-            <p>KBTD needs permission to view and edit your file.</p>
+            <p>Kanban TODO needs permission to view and edit your file.</p>
             <button id="grant-permission-btn">Grant Access</button>
         </div>
 
@@ -426,6 +443,9 @@
                 <button id="create-project-btn">Create</button>
             </div>
             <button id="change-file-btn" style="margin-top: 1em">Change File</button>
+            <h2>Install</h2>
+            <pre id="launcher-instructions-section" style="display:none">kbtd # &lt;- right click and save as
+chmod 755 kbtd</pre>
         </div>
 
         <!-- Board Screen -->
@@ -461,6 +481,8 @@
             currentDropTarget: null
         };
 
+        let launcherScriptBlob = null;
+
         // --- IndexedDB Helper ---
         const dbPromise = new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -494,6 +516,45 @@
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
             });
+        }
+
+        // --- Launcher Script Loading ---
+        async function loadLauncherScript() {
+            try {
+                console.log('Loading launcher script...');
+                const response = await fetch('kbtd');
+                if (!response.ok) {
+                    console.error('Failed to load launcher script:', response.status);
+                    return;
+                }
+                
+                let scriptContent = await response.text();
+                console.log('Launcher script loaded, modifying URL...');
+                
+                const currentUrl = window.location.href.split('?')[0];
+                scriptContent = scriptContent.replace(
+                    /BASE_URL="\$\{KBTD_URL:-http:\/\/localhost:8000\}"/,
+                    `BASE_URL="\${KBTD_URL:-${currentUrl}}"`
+                );
+                
+                launcherScriptBlob = new Blob([scriptContent], { type: 'application/x-sh' });
+                const blobUrl = URL.createObjectURL(launcherScriptBlob);
+                
+                const landingInstructions = document.getElementById('launcher-instructions-landing');
+                const sectionInstructions = document.getElementById('launcher-instructions-section');
+                
+                landingInstructions.innerHTML = `<a href="${blobUrl}" download="kbtd">kbtd</a> # &lt;- right click and save as
+chmod 755 kbtd`;
+                landingInstructions.style.display = 'block';
+                
+                sectionInstructions.innerHTML = `<a href="${blobUrl}" download="kbtd">kbtd</a> # &lt;- right click and save as
+chmod 755 kbtd`;
+                sectionInstructions.style.display = 'block';
+                
+                console.log('Launcher script ready for download');
+            } catch (err) {
+                console.error('Error loading launcher script:', err);
+            }
         }
 
         // --- Markdown Parsing ---
@@ -1293,6 +1354,8 @@
         // --- Initialization & Polling ---
 
         async function init() {
+            loadLauncherScript();
+            
             const params = new URLSearchParams(window.location.search);
             state.filePath = params.get('file');
 
