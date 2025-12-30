@@ -145,6 +145,7 @@
             flex-direction: column;
             gap: 0.5em;
             min-height: 100px;
+            position: relative;
         }
 
         .card {
@@ -185,10 +186,25 @@
             cursor: pointer;
             background: transparent;
             margin-left: 0.5em;
+            margin-bottom: 0.5em;
         }
 
         .card-checkbox.checked {
             background: var(--fg);
+        }
+
+        .drop-indicator {
+            height: 3px;
+            background: var(--fg);
+            margin: -0.25em 0;
+            border-radius: 2px;
+            opacity: 0;
+            transition: opacity 0.1s;
+            pointer-events: none;
+        }
+
+        .drop-indicator.active {
+            opacity: 1;
         }
 
         /* Section Picker */
@@ -297,6 +313,11 @@
             currentSectionIndex: -1,
             lastModified: 0,
             showCompleted: false
+        };
+
+        let dragState = {
+            source: null,
+            currentDropTarget: null
         };
 
         // --- IndexedDB Helper ---
@@ -437,51 +458,83 @@
             await writeFile(lines.join('\n'));
         }
 
-        async function moveLineInFile(fromLine, toLine, targetColumnIsEmpty) {
-            console.log('moveLineInFile: from line', fromLine, 'to line', toLine, 'targetColumnIsEmpty:', targetColumnIsEmpty);
+        async function moveLineInFile(fromLine, toLine, targetColumnIndex, insertPosition) {
+            console.log('moveLineInFile: from line', fromLine, 'to line', toLine, 'targetColumnIndex:', targetColumnIndex, 'insertPosition:', insertPosition);
             const file = await state.fileHandle.getFile();
             const text = await file.text();
             const lines = text.split('\n');
             
+            const section = state.sections[state.currentSectionIndex];
+            const targetColumn = section.columns[targetColumnIndex];
+            const targetColumnIsEmpty = targetColumn.cards.length === 0;
+            
             console.log('Before move, source line', fromLine, '=', lines[fromLine]);
-            console.log('Before move, target line', toLine, '=', lines[toLine]);
+            console.log('Target column is empty:', targetColumnIsEmpty);
             
             const [movedLine] = lines.splice(fromLine, 1);
             
+            let actualInsertLine;
+            
             if (targetColumnIsEmpty) {
-                console.log('Moving to empty column - ensuring blank lines before and after');
+                console.log('Moving to empty column - inserting after header');
+                actualInsertLine = targetColumn.headerLineNumber + 1;
                 
-                if (toLine < lines.length && lines[toLine].trim() === '') {
-                    lines.splice(toLine, 0, movedLine);
+                if (actualInsertLine < lines.length && lines[actualInsertLine].trim() === '') {
+                    lines.splice(actualInsertLine, 0, movedLine);
                 } else {
-                    lines.splice(toLine, 0, '', movedLine);
+                    lines.splice(actualInsertLine, 0, '', movedLine);
                 }
                 
-                const afterLine = toLine + (lines[toLine].trim() === '' ? 2 : 1);
+                const afterLine = actualInsertLine + (lines[actualInsertLine].trim() === '' ? 2 : 1);
                 if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
                     lines.splice(afterLine, 0, '');
                 }
             } else {
-                console.log('Moving to non-empty column');
-                
-                if (toLine > 0 && lines[toLine - 1].trim() === '') {
-                    console.log('Line before target is blank, replacing it');
-                    lines[toLine - 1] = movedLine;
+                if (insertPosition === 0) {
+                    console.log('Inserting at start of column');
+                    actualInsertLine = targetColumn.headerLineNumber + 1;
+                    
+                    if (actualInsertLine < lines.length && lines[actualInsertLine].trim() === '') {
+                        actualInsertLine++;
+                    }
+                    
+                    lines.splice(actualInsertLine, 0, movedLine);
+                    
+                    const afterLine = actualInsertLine + 1;
+                    if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
+                        lines.splice(afterLine, 0, '');
+                    }
                 } else {
-                    console.log('Inserting at target position');
-                    lines.splice(toLine, 0, movedLine);
-                }
-                
-                const movedLineIndex = toLine > 0 && lines[toLine - 1] === movedLine ? toLine - 1 : toLine;
-                const afterLine = movedLineIndex + 1;
-                if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
-                    console.log('Ensuring blank line after moved item at line', afterLine);
-                    lines.splice(afterLine, 0, '');
+                    console.log('Inserting at position', insertPosition);
+                    const cardBefore = targetColumn.cards[insertPosition - 1];
+                    actualInsertLine = cardBefore.lineNumber + 1;
+                    if (cardBefore.nestedLines.length > 0) {
+                        actualInsertLine += cardBefore.nestedLines.length;
+                    }
+                    
+                    if (fromLine < actualInsertLine) {
+                        actualInsertLine--;
+                    }
+                    
+                    if (actualInsertLine > 0 && lines[actualInsertLine - 1].trim() === '') {
+                        console.log('Line before target is blank, replacing it');
+                        lines[actualInsertLine - 1] = movedLine;
+                    } else {
+                        console.log('Inserting at target position');
+                        lines.splice(actualInsertLine, 0, movedLine);
+                    }
+                    
+                    const movedLineIndex = lines[actualInsertLine - 1] === movedLine ? actualInsertLine - 1 : actualInsertLine;
+                    const afterLine = movedLineIndex + 1;
+                    if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
+                        console.log('Ensuring blank line after moved item at line', afterLine);
+                        lines.splice(afterLine, 0, '');
+                    }
                 }
             }
             
             console.log('After move, lines around target:');
-            for (let i = Math.max(0, toLine - 2); i <= Math.min(lines.length - 1, toLine + 2); i++) {
+            for (let i = Math.max(0, actualInsertLine - 2); i <= Math.min(lines.length - 1, actualInsertLine + 2); i++) {
                 console.log(`  line ${i}: "${lines[i]}"`);
             }
             
@@ -578,9 +631,6 @@
                 const colDiv = document.createElement('div');
                 colDiv.className = 'column';
                 colDiv.dataset.colIndex = colIndex;
-                
-                colDiv.ondragover = handleDragOver;
-                colDiv.ondrop = (e) => handleDrop(e, colIndex);
 
                 const header = document.createElement('div');
                 header.className = 'column-header';
@@ -589,6 +639,26 @@
 
                 const cardList = document.createElement('div');
                 cardList.className = 'card-list';
+                cardList.dataset.colIndex = colIndex;
+                
+                cardList.ondragover = (e) => handleDragOver(e, colIndex, cardList);
+                cardList.ondrop = (e) => handleDrop(e, colIndex);
+                cardList.ondragleave = handleDragLeave;
+                
+                const visibleCards = column.cards.filter((card, idx) => {
+                    if (!state.showCompleted && card.completed) {
+                        return false;
+                    }
+                    return true;
+                });
+                
+                if (visibleCards.length > 0) {
+                    const firstIndicator = document.createElement('div');
+                    firstIndicator.className = 'drop-indicator';
+                    firstIndicator.dataset.colIndex = colIndex;
+                    firstIndicator.dataset.position = 0;
+                    cardList.appendChild(firstIndicator);
+                }
                 
                 column.cards.forEach((card, cardIndex) => {
                     if (!state.showCompleted && card.completed) {
@@ -625,9 +695,24 @@
                     
                     cardDiv.ondragstart = (e) => handleDragStart(e, cardDiv);
                     cardDiv.ondragend = handleDragEnd;
+                    cardDiv.ondragenter = (e) => handleCardDragEnter(e, cardDiv, colIndex, cardIndex);
 
                     cardList.appendChild(cardDiv);
+                    
+                    const indicator = document.createElement('div');
+                    indicator.className = 'drop-indicator';
+                    indicator.dataset.colIndex = colIndex;
+                    indicator.dataset.position = cardIndex + 1;
+                    cardList.appendChild(indicator);
                 });
+                
+                if (visibleCards.length === 0) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'drop-indicator';
+                    indicator.dataset.colIndex = colIndex;
+                    indicator.dataset.position = 0;
+                    cardList.appendChild(indicator);
+                }
 
                 colDiv.appendChild(cardList);
                 container.appendChild(colDiv);
@@ -672,69 +757,159 @@
 
         // --- Drag and Drop ---
 
-        let dragSource = null;
-
         function handleDragStart(e, cardDiv) {
-            dragSource = {
+            dragState.source = {
                 lineNumber: parseInt(cardDiv.dataset.lineNumber),
                 colIndex: parseInt(cardDiv.dataset.colIndex),
                 cardIndex: parseInt(cardDiv.dataset.cardIndex)
             };
             e.target.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', JSON.stringify(dragSource));
+            e.dataTransfer.setData('text/plain', JSON.stringify(dragState.source));
+            console.log('Drag started:', dragState.source);
         }
 
         function handleDragEnd(e) {
             e.target.classList.remove('dragging');
-            dragSource = null;
+            clearDropIndicators();
+            dragState.source = null;
+            dragState.currentDropTarget = null;
         }
 
-        function handleDragOver(e) {
+        function clearDropIndicators() {
+            document.querySelectorAll('.drop-indicator').forEach(el => {
+                el.classList.remove('active');
+            });
+        }
+
+        function handleCardDragEnter(e, cardDiv, colIndex, cardIndex) {
+            if (!dragState.source) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const rect = cardDiv.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            const mouseY = e.clientY;
+            
+            let position;
+            if (mouseY < midpoint) {
+                position = cardIndex;
+            } else {
+                position = cardIndex + 1;
+            }
+            
+            console.log('Card drag enter: col', colIndex, 'position', position);
+            
+            dragState.currentDropTarget = { colIndex, position };
+            
+            clearDropIndicators();
+            const indicator = document.querySelector(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
+            if (indicator) {
+                indicator.classList.add('active');
+            }
+        }
+
+        function handleDragOver(e, colIndex, cardList) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-            return false;
+            
+            if (!dragState.source) return;
+            
+            const cards = Array.from(cardList.querySelectorAll('.card'));
+            
+            if (cards.length === 0) {
+                console.log('Drag over empty column', colIndex);
+                dragState.currentDropTarget = { colIndex, position: 0 };
+                clearDropIndicators();
+                const indicator = cardList.querySelector('.drop-indicator');
+                if (indicator) {
+                    indicator.classList.add('active');
+                }
+                return;
+            }
+            
+            let closestCard = null;
+            let closestDistance = Infinity;
+            let insertBefore = true;
+            
+            cards.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                const distance = Math.abs(e.clientY - midpoint);
+                
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestCard = card;
+                    insertBefore = e.clientY < midpoint;
+                }
+            });
+            
+            if (closestCard) {
+                const cardIndex = parseInt(closestCard.dataset.cardIndex);
+                const position = insertBefore ? cardIndex : cardIndex + 1;
+                
+                if (!dragState.currentDropTarget || 
+                    dragState.currentDropTarget.colIndex !== colIndex || 
+                    dragState.currentDropTarget.position !== position) {
+                    
+                    console.log('Drag over: col', colIndex, 'position', position);
+                    dragState.currentDropTarget = { colIndex, position };
+                    
+                    clearDropIndicators();
+                    const indicator = document.querySelector(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
+                    if (indicator) {
+                        indicator.classList.add('active');
+                    }
+                }
+            }
+        }
+
+        function handleDragLeave(e) {
+            if (e.target.classList.contains('card-list')) {
+                const relatedTarget = e.relatedTarget;
+                if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+                    console.log('Drag leave card-list');
+                }
+            }
         }
 
         async function handleDrop(e, targetColIndex) {
             e.stopPropagation();
             e.preventDefault();
             
-            if (!dragSource) return;
+            clearDropIndicators();
             
-            const sourceColIndex = dragSource.colIndex;
-            const sourceLineNumber = dragSource.lineNumber;
+            if (!dragState.source || !dragState.currentDropTarget) {
+                console.log('Drop ignored: no source or target');
+                return;
+            }
             
-            console.log('handleDrop: sourceColIndex=', sourceColIndex, 'targetColIndex=', targetColIndex);
+            const sourceColIndex = dragState.source.colIndex;
+            const sourceLineNumber = dragState.source.lineNumber;
+            const targetPosition = dragState.currentDropTarget.position;
+            
+            console.log('Drop: sourceCol', sourceColIndex, 'targetCol', targetColIndex, 'position', targetPosition);
             
             if (sourceColIndex === targetColIndex) {
-                console.log('Same column, ignoring drop');
-                return;
+                const sourceCardIndex = dragState.source.cardIndex;
+                if (targetPosition === sourceCardIndex || targetPosition === sourceCardIndex + 1) {
+                    console.log('Same position, ignoring drop');
+                    dragState.source = null;
+                    dragState.currentDropTarget = null;
+                    return;
+                }
             }
             
             const section = state.sections[state.currentSectionIndex];
             const targetColumn = section.columns[targetColIndex];
             
-            console.log('Target column:', targetColumn.name, 'headerLineNumber=', targetColumn.headerLineNumber);
+            console.log('Target column:', targetColumn.name, 'position:', targetPosition);
             
-            const targetColumnIsEmpty = targetColumn.cards.length === 0;
-            let targetLineNumber;
+            await moveLineInFile(sourceLineNumber, 0, targetColIndex, targetPosition);
             
-            if (targetColumnIsEmpty) {
-                targetLineNumber = targetColumn.headerLineNumber + 1;
-                console.log('Empty column, inserting after header at line', targetLineNumber);
-            } else {
-                const lastCard = targetColumn.cards[targetColumn.cards.length - 1];
-                targetLineNumber = lastCard.lineNumber + 1;
-                if (lastCard.nestedLines.length > 0) {
-                    targetLineNumber += lastCard.nestedLines.length;
-                }
-                console.log('Non-empty column, inserting after last card at line', targetLineNumber);
-            }
-            
-            await moveLineInFile(sourceLineNumber, targetLineNumber, targetColumnIsEmpty);
-            
-            dragSource = null;
+            dragState.source = null;
+            dragState.currentDropTarget = null;
             return false;
         }
 
