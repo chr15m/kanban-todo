@@ -27,6 +27,6 @@ The text based format is designed to be simple for humans, git, and LLMs to read
 
 ## Self host
 
-Copy `index.html` and `kbtd` up to your server.
+Copy `index.html` up to your server.
 
-Then visit the page and download `kbtd` and put it on your path.
+If you're using the `kbtd` command line launcher, set `KBTD_URL` to point at your server.
