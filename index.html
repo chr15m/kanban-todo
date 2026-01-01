@@ -414,6 +414,10 @@
             border-radius: 3px;
             font-family: monospace;
         }
+
+        ul {
+            list-style: square;
+        }
     </style>
 </head>
 <body>
@@ -432,8 +436,13 @@ chmod 755 kbtd
     <div id="app">
         <div id="landing-screen" class="screen center-content">
             <h1>Kanban TODO</h1>
-            <p>Markdown based task management</p>
-            <p>To get started, open a Markdown file containing your tasks.</p>
+            <p>A Kanban board for your Markdown TODO file.</p>
+            <ul style="text-align: left; max-width: 600px;">
+                <li>Drag-and-drop visual editing of plain text Markdown</li>
+                <li>Runs 100% in your browser - no server, no database</li>
+                <li>Single HTML file - upload to self-host</li>
+                <li>CLI tool to launch as a Chrome app: <code>kbtd TODO.md</code></li>
+            </ul>
             <button id="open-file-btn">Open TODO.md</button>
             <div id="landing-instructions"></div>
             <div id="landing-error" class="error" style="display:none"></div>

@@ -1,8 +1,9 @@
-A Kanban editor for your TODO.md Markdown file, in a single `index.html` file.
+A Kanban board for your Markdown TODO file.
 
-Launch it from the command line: `kbtd TODO.md`.
-
-It will open Chrome/Edge browser in app/kiosk mode with the running web app.
+- Drag-and-drop visual editing of plain text Markdown
+- Runs 100% in your browser - no server, no database
+- Single HTML file - upload to self-host
+- CLI tool to launch as a Chrome app: `kbtd TODO.md`
 
 ## Format
 
