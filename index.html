@@ -178,6 +178,9 @@
             word-wrap: break-word;
             position: relative;
             flex-shrink: 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5em;
         }
 
         .card:hover {
@@ -198,19 +201,77 @@
             border: .1rem dashed var(--fg);
         }
 
-        .card-checkbox {
-            float: right;
+        .card-text {
+            flex-grow: 1;
+        }
+
+        .card-menu-btn {
+            width: 1.5em;
+            height: 1.5em;
+            padding: 0;
+            background: transparent;
+            border: none;
+            color: var(--shade);
+            cursor: pointer;
+            font-size: 1.2em;
+            line-height: 1;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-menu-btn:hover {
+            color: var(--fg);
+            opacity: 1;
+        }
+
+        .card-menu {
+            position: absolute;
+            right: 0;
+            top: 2em;
+            background: var(--bg);
+            border: .1rem solid var(--fg);
+            border-radius: var(--radius);
+            padding: 0.5em 0;
+            min-width: 150px;
+            z-index: 100;
+            display: none;
+        }
+
+        .card-menu.active {
+            display: block;
+        }
+
+        .card-menu-item {
+            padding: 0.5em 1em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+            background: transparent;
+            border: none;
+            color: var(--fg);
+            width: 100%;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .card-menu-item:hover {
+            background: var(--shade);
+            opacity: 1;
+        }
+
+        .card-menu-checkbox {
             width: 1em;
             height: 1em;
             border: .1rem solid var(--fg);
             border-radius: 2px;
-            cursor: pointer;
             background: transparent;
-            margin-left: 0.5em;
-            margin-bottom: 0.5em;
+            flex-shrink: 0;
         }
 
-        .card-checkbox.checked {
+        .card-menu-checkbox.checked {
             background: var(--fg);
         }
 
@@ -371,6 +432,77 @@
             border-radius: var(--radius);
         }
 
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--bg);
+            border: .1rem solid var(--fg);
+            border-radius: var(--radius);
+            padding: 2em;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            min-width: 400px;
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 1em;
+        }
+
+        .modal-section {
+            margin-bottom: 1.5em;
+        }
+
+        .modal-section label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 0.5em;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 0.5em;
+            justify-content: flex-end;
+            margin-top: 1.5em;
+        }
+
+        .project-select, .column-select {
+            width: 100%;
+            padding: 0.5em;
+            padding-right: 2.5em;
+            background: var(--bg);
+            color: var(--fg);
+            border: .1rem solid var(--fg);
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-family: Helvetica, Arial, sans-serif;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path d="M1 1 L6 6 L11 1" stroke="%23ffe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 0.75em center;
+            background-size: 12px 8px;
+        }
+
         ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
@@ -475,6 +607,24 @@ chmod 755 kbtd
             </header>
             <div id="board-container" class="board"></div>
         </div>
+
+        <div id="move-modal" class="modal">
+            <div class="modal-content">
+                <h3>Move to Project</h3>
+                <div class="modal-section">
+                    <label for="target-project-select">Project:</label>
+                    <select id="target-project-select" class="project-select"></select>
+                </div>
+                <div class="modal-section">
+                    <label for="target-column-select">Column:</label>
+                    <select id="target-column-select" class="column-select"></select>
+                </div>
+                <div class="modal-buttons">
+                    <button id="move-cancel-btn">Cancel</button>
+                    <button id="move-confirm-btn">Move</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -497,6 +647,13 @@ chmod 755 kbtd
         let dragState = {
             source: null,
             currentDropTarget: null
+        };
+
+        let moveModalState = {
+            cardLineNumber: null,
+            cardOriginalLine: null,
+            sourceColIndex: null,
+            sourceCardIndex: null
         };
 
         function h(tag, props = {}, ...children) {
@@ -789,6 +946,55 @@ chmod 755 kbtd
             });
         }
 
+        async function moveLineBetweenSections(fromLine, targetSectionIndex, targetColumnIndex) {
+            console.log('moveLineBetweenSections: from line', fromLine, 'to section', targetSectionIndex, 'column', targetColumnIndex);
+            await modifyFileLines(lines => {
+                const [movedLine] = lines.splice(fromLine, 1);
+                
+                const targetSection = state.sections[targetSectionIndex];
+                const targetColumn = targetSection.columns[targetColumnIndex];
+                
+                let insertLine;
+                if (targetColumn.cards.length === 0) {
+                    insertLine = targetColumn.headerLineNumber + 1;
+                    
+                    if (fromLine < insertLine) {
+                        insertLine--;
+                    }
+                    
+                    if (insertLine < lines.length && lines[insertLine].trim() === '') {
+                        lines.splice(insertLine, 0, movedLine);
+                    } else {
+                        lines.splice(insertLine, 0, '', movedLine);
+                    }
+                    
+                    const afterLine = insertLine + (lines[insertLine].trim() === '' ? 2 : 1);
+                    if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
+                        lines.splice(afterLine, 0, '');
+                    }
+                } else {
+                    const lastCard = targetColumn.cards[targetColumn.cards.length - 1];
+                    insertLine = lastCard.lineNumber + 1;
+                    if (lastCard.nestedLines.length > 0) {
+                        insertLine += lastCard.nestedLines.length;
+                    }
+                    
+                    if (fromLine < insertLine) {
+                        insertLine--;
+                    }
+                    
+                    lines.splice(insertLine, 0, movedLine);
+                    
+                    const afterLine = insertLine + 1;
+                    if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
+                        lines.splice(afterLine, 0, '');
+                    }
+                }
+                
+                console.log('Moved line to position', insertLine);
+            });
+        }
+
         async function createProject(projectName) {
             console.log('Creating project:', projectName);
             await modifyFileLines(lines => {
@@ -951,6 +1157,84 @@ chmod 755 kbtd
             showScreen('section-screen');
         }
 
+        function closeAllCardMenus() {
+            $$('.card-menu').forEach(menu => menu.classList.remove('active'));
+        }
+
+        function openMoveModal(cardLineNumber, cardOriginalLine, sourceColIndex, sourceCardIndex) {
+            moveModalState = {
+                cardLineNumber,
+                cardOriginalLine,
+                sourceColIndex,
+                sourceCardIndex
+            };
+            
+            const projectSelect = $('#target-project-select');
+            projectSelect.replaceChildren(
+                ...state.sections.map((section, index) => 
+                    h('option', {
+                        value: index,
+                        textContent: section.name,
+                        selected: index === state.currentSectionIndex
+                    })
+                )
+            );
+            
+            updateColumnSelect();
+            
+            $('#move-modal').classList.add('active');
+        }
+
+        function updateColumnSelect() {
+            const projectSelect = $('#target-project-select');
+            const selectedProjectIndex = parseInt(projectSelect.value);
+            const selectedProject = state.sections[selectedProjectIndex];
+            
+            const columnSelect = $('#target-column-select');
+            columnSelect.replaceChildren(
+                ...selectedProject.columns.map((column, index) => 
+                    h('option', {
+                        value: index,
+                        textContent: column.name
+                    })
+                )
+            );
+        }
+
+        function closeMoveModal() {
+            $('#move-modal').classList.remove('active');
+            moveModalState = {
+                cardLineNumber: null,
+                cardOriginalLine: null,
+                sourceColIndex: null,
+                sourceCardIndex: null
+            };
+        }
+
+        async function confirmMove() {
+            const targetSectionIndex = parseInt($('#target-project-select').value);
+            const targetColumnIndex = parseInt($('#target-column-select').value);
+            
+            console.log('Moving card from section', state.currentSectionIndex, 'to section', targetSectionIndex, 'column', targetColumnIndex);
+            
+            if (targetSectionIndex === state.currentSectionIndex) {
+                await moveLineInFile(
+                    moveModalState.cardLineNumber,
+                    0,
+                    targetColumnIndex,
+                    state.sections[targetSectionIndex].columns[targetColumnIndex].cards.length
+                );
+            } else {
+                await moveLineBetweenSections(
+                    moveModalState.cardLineNumber,
+                    targetSectionIndex,
+                    targetColumnIndex
+                );
+            }
+            
+            closeMoveModal();
+        }
+
         function renderBoard() {
             const section = state.sections[state.currentSectionIndex];
             if (!section) return renderSectionPicker();
@@ -995,10 +1279,34 @@ chmod 755 kbtd
                         ondragenter: (e) => handleCardDragEnter(e, cardDiv, colIndex, cardIndex)
                     });
                     
+                    const cardText = h('span', { 
+                        className: 'card-text',
+                        textContent: card.text 
+                    });
+                    
+                    const menuBtn = h('button', {
+                        className: 'card-menu-btn',
+                        textContent: '⋮',
+                        onclick: (e) => {
+                            e.stopPropagation();
+                            const menu = cardDiv.querySelector('.card-menu');
+                            const wasActive = menu.classList.contains('active');
+                            closeAllCardMenus();
+                            if (!wasActive) {
+                                menu.classList.add('active');
+                            }
+                        }
+                    });
+                    
                     const checkbox = h('div', {
-                        className: `card-checkbox ${card.completed ? 'checked' : ''}`,
+                        className: `card-menu-checkbox ${card.completed ? 'checked' : ''}`
+                    });
+                    
+                    const completeItem = h('button', {
+                        className: 'card-menu-item',
                         onclick: async (e) => {
                             e.stopPropagation();
+                            closeAllCardMenus();
                             const lineNum = getDataInt(cardDiv, 'lineNumber');
                             const originalLine = cardDiv.dataset.originalLine;
                             const newLine = originalLine.includes('- [x]')
@@ -1006,9 +1314,28 @@ chmod 755 kbtd
                                 : originalLine.replace('- [ ]', '- [x]');
                             await updateLineInFile(lineNum, newLine);
                         }
+                    }, checkbox, h('span', { textContent: 'Complete' }));
+                    
+                    const moveItem = h('button', {
+                        className: 'card-menu-item',
+                        textContent: 'Move to project...',
+                        onclick: (e) => {
+                            e.stopPropagation();
+                            closeAllCardMenus();
+                            openMoveModal(
+                                getDataInt(cardDiv, 'lineNumber'),
+                                cardDiv.dataset.originalLine,
+                                colIndex,
+                                cardIndex
+                            );
+                        }
                     });
                     
-                    cardDiv.append(checkbox, h('span', { textContent: card.text }));
+                    const menu = h('div', {
+                        className: 'card-menu'
+                    }, completeItem, moveItem);
+                    
+                    cardDiv.append(cardText, menuBtn, menu);
                     
                     cardElements.push(
                         cardDiv,
@@ -1132,6 +1459,7 @@ chmod 755 kbtd
         }
 
         function handleDragStart(e, cardDiv) {
+            closeAllCardMenus();
             dragState.source = {
                 lineNumber: getDataInt(cardDiv, 'lineNumber'),
                 colIndex: getDataInt(cardDiv, 'colIndex'),
@@ -1253,6 +1581,12 @@ chmod 755 kbtd
             return false;
         }
 
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.card-menu') && !e.target.closest('.card-menu-btn')) {
+                closeAllCardMenus();
+            }
+        });
+
         async function init() {
             insertInstallInstructions('landing-instructions');
             insertInstallInstructions('section-instructions');
@@ -1373,6 +1707,18 @@ chmod 755 kbtd
             if (e.key === 'Enter') {
                 $('#create-project-btn').click();
             }
+        };
+
+        $('#target-project-select').onchange = () => {
+            updateColumnSelect();
+        };
+
+        $('#move-cancel-btn').onclick = () => {
+            closeMoveModal();
+        };
+
+        $('#move-confirm-btn').onclick = async () => {
+            await confirmMove();
         };
 
         init();
