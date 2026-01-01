@@ -86,7 +86,6 @@
         h3 { font-size: 1.17em; }
         h1, h2, h3 { margin-top: 0; }
 
-        /* Layouts */
         #app {
             flex-grow: 1;
             display: flex;
@@ -113,7 +112,6 @@
             gap: 1.5em;
         }
 
-        /* Kanban Board */
         header {
             display: flex;
             justify-content: space-between;
@@ -332,7 +330,6 @@
             font-size: 0.9rem;
         }
 
-        /* Section Picker */
         .section-list {
             list-style: none;
             padding: 0;
@@ -374,7 +371,6 @@
             border-radius: var(--radius);
         }
 
-        /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
@@ -421,33 +417,34 @@
     </style>
 </head>
 <body>
+    <template id="install-instructions-template">
+        <p>Install launch script:</p>
+        <pre>curl -O <a href="https://mccormick.cx/apps/kanban-todo/kbtd">https://mccormick.cx/apps/kanban-todo/kbtd</a>
+chmod 755 kbtd
+
+# If self-hosting, set KBTD_URL to your URL:
+# export KBTD_URL="<span class="current-url"></span>"
+
+# Then launch with:
+./kbtd TODO.md</pre>
+    </template>
+
     <div id="app">
-        <!-- Landing Screen -->
         <div id="landing-screen" class="screen center-content">
             <h1>Kanban TODO</h1>
             <p>Markdown based task management</p>
             <p>To get started, open a Markdown file containing your tasks.</p>
             <button id="open-file-btn">Open TODO.md</button>
-            <p>Install launch script:</p>
-            <pre>curl -O <a href="https://mccormick.cx/apps/kanban-todo/kbtd">https://mccormick.cx/apps/kanban-todo/kbtd</a>
-chmod 755 kbtd
-
-# If self-hosting, set KBTD_URL to your URL:
-# export KBTD_URL="<span id="current-url-landing"></span>"
-
-# Then launch with:
-./kbtd TODO.md</pre>
+            <div id="landing-instructions"></div>
             <div id="landing-error" class="error" style="display:none"></div>
         </div>
 
-        <!-- Permission Screen -->
         <div id="permission-screen" class="screen center-content">
             <h1>Permission Required</h1>
             <p>Kanban TODO needs permission to view and edit your file.</p>
             <button id="grant-permission-btn">Grant Access</button>
         </div>
 
-        <!-- Section Picker Screen -->
         <div id="section-screen" class="screen center-content">
             <h1>Select Project</h1>
             <ul id="section-list" class="section-list"></ul>
@@ -456,18 +453,9 @@ chmod 755 kbtd
                 <button id="create-project-btn">Create</button>
             </div>
             <button id="change-file-btn" style="margin-top: 1em">Change File</button>
-            <p>Install launch script:</p>
-            <pre>curl -O <a href="https://mccormick.cx/apps/kanban-todo/kbtd">https://mccormick.cx/apps/kanban-todo/kbtd</a>
-chmod 755 kbtd
-
-# If self-hosting, set KBTD_URL to your URL:
-# export KBTD_URL="<span id="current-url-section"></span>"
-
-# Then launch with:
-./kbtd TODO.md</pre>
+            <div id="section-instructions"></div>
         </div>
 
-        <!-- Board Screen -->
         <div id="board-screen" class="screen">
             <header>
                 <h2 id="board-title" style="margin:0">Project Name</h2>
@@ -481,7 +469,6 @@ chmod 755 kbtd
     </div>
 
     <script>
-        // --- Constants & State ---
         const DB_NAME = 'kbtd';
         const DB_VERSION = 1;
         const STORE_NAME = 'fileHandles';
@@ -500,7 +487,73 @@ chmod 755 kbtd
             currentDropTarget: null
         };
 
-        // --- IndexedDB Helper ---
+        function h(tag, props = {}, ...children) {
+            const el = document.createElement(tag);
+            for (const [k, v] of Object.entries(props)) {
+                if (k.startsWith('on')) el[k] = v;
+                else if (k === 'dataset') Object.assign(el.dataset, v);
+                else if (k === 'className') el.className = v;
+                else if (k === 'style' && typeof v === 'object') {
+                    Object.assign(el.style, v);
+                } else el[k] = v;
+            }
+            children.flat().forEach(c => {
+                if (c != null) el.append(c);
+            });
+            return el;
+        }
+
+        function insertInstallInstructions(containerId) {
+            const template = document.getElementById('install-instructions-template');
+            const clone = template.content.cloneNode(true);
+            const currentUrl = window.location.href.split('?')[0];
+            clone.querySelector('.current-url').textContent = currentUrl;
+            document.getElementById(containerId).appendChild(clone);
+        }
+
+        function createAddForm(placeholder, onSubmit) {
+            const input = h('input', { type: 'text', placeholder });
+            const form = h('div', { className: 'add-card-form' }, input);
+            
+            const handleSubmit = async () => {
+                const value = input.value.trim();
+                if (!value) {
+                    alert(`Please enter ${placeholder.toLowerCase()}`);
+                    return;
+                }
+                await onSubmit(value);
+            };
+            
+            input.onkeypress = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSubmit();
+                }
+            };
+            
+            const buttons = h('div', { className: 'add-card-form-buttons' },
+                h('button', { textContent: 'Add', onclick: handleSubmit }),
+                h('button', { 
+                    textContent: 'Cancel', 
+                    onclick: () => form.hide()
+                })
+            );
+            
+            form.appendChild(buttons);
+            
+            form.show = () => {
+                form.classList.add('active');
+                input.focus();
+            };
+            
+            form.hide = () => {
+                form.classList.remove('active');
+                input.value = '';
+            };
+            
+            return form;
+        }
+
         const dbPromise = new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
             request.onerror = () => reject(request.error);
@@ -534,8 +587,6 @@ chmod 755 kbtd
                 request.onerror = () => reject(request.error);
             });
         }
-
-        // --- Markdown Parsing ---
 
         function parseMarkdown(text) {
             const lines = text.split('\n');
@@ -598,8 +649,6 @@ chmod 755 kbtd
             finishCard();
             return sections;
         }
-
-        // --- File Operations ---
 
         function reloadFromText(text) {
             console.log('Reloading from text');
@@ -869,8 +918,6 @@ chmod 755 kbtd
             return false;
         }
 
-        // --- UI Rendering ---
-
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
@@ -878,20 +925,19 @@ chmod 755 kbtd
 
         function renderSectionPicker() {
             const list = document.getElementById('section-list');
-            list.innerHTML = '';
-            
-            state.sections.forEach((section, index) => {
-                const li = document.createElement('li');
-                const btn = document.createElement('button');
-                btn.className = 'section-btn';
-                btn.textContent = section.name;
-                btn.onclick = () => selectSection(index);
-                li.appendChild(btn);
-                list.appendChild(li);
-            });
+            list.replaceChildren(
+                ...state.sections.map((section, index) => 
+                    h('li', {},
+                        h('button', {
+                            className: 'section-btn',
+                            textContent: section.name,
+                            onclick: () => selectSection(index)
+                        })
+                    )
+                )
+            );
             
             document.getElementById('new-project-input').value = '';
-            
             showScreen('section-screen');
         }
 
@@ -905,240 +951,131 @@ chmod 755 kbtd
             toggleBtn.textContent = state.showCompleted ? 'Hide Completed' : 'Show Completed';
             
             const container = document.getElementById('board-container');
-            container.innerHTML = '';
-
-            section.columns.forEach((column, colIndex) => {
-                const colDiv = document.createElement('div');
-                colDiv.className = 'column';
-                colDiv.dataset.colIndex = colIndex;
-
-                const header = document.createElement('div');
-                header.className = 'column-header';
-                header.textContent = column.name;
-                colDiv.appendChild(header);
-
-                const cardList = document.createElement('div');
-                cardList.className = 'card-list';
-                cardList.dataset.colIndex = colIndex;
+            
+            const columns = section.columns.map((column, colIndex) => {
+                const visibleCards = column.cards.filter(card => 
+                    state.showCompleted || !card.completed
+                );
                 
-                cardList.ondragover = (e) => handleDragOver(e, colIndex, cardList);
-                cardList.ondrop = (e) => handleDrop(e, colIndex);
-                cardList.ondragleave = handleDragLeave;
-                
-                const visibleCards = column.cards.filter((card, idx) => {
-                    if (!state.showCompleted && card.completed) {
-                        return false;
-                    }
-                    return true;
-                });
+                const cardElements = [];
                 
                 if (visibleCards.length > 0) {
-                    const firstIndicator = document.createElement('div');
-                    firstIndicator.className = 'drop-indicator';
-                    firstIndicator.dataset.colIndex = colIndex;
-                    firstIndicator.dataset.position = 0;
-                    cardList.appendChild(firstIndicator);
+                    cardElements.push(
+                        h('div', {
+                            className: 'drop-indicator',
+                            dataset: { colIndex, position: 0 }
+                        })
+                    );
                 }
                 
                 column.cards.forEach((card, cardIndex) => {
-                    if (!state.showCompleted && card.completed) {
-                        return;
-                    }
+                    if (!state.showCompleted && card.completed) return;
                     
-                    const cardDiv = document.createElement('div');
-                    cardDiv.className = `card ${card.completed ? 'completed' : ''}`;
-                    cardDiv.draggable = true;
+                    const cardDiv = h('div', {
+                        className: `card ${card.completed ? 'completed' : ''}`,
+                        draggable: true,
+                        dataset: {
+                            lineNumber: card.lineNumber,
+                            originalLine: card.originalLine,
+                            colIndex,
+                            cardIndex
+                        },
+                        ondragstart: (e) => handleDragStart(e, cardDiv),
+                        ondragend: handleDragEnd,
+                        ondragenter: (e) => handleCardDragEnter(e, cardDiv, colIndex, cardIndex)
+                    });
                     
-                    cardDiv.dataset.lineNumber = card.lineNumber;
-                    cardDiv.dataset.originalLine = card.originalLine;
-                    cardDiv.dataset.colIndex = colIndex;
-                    cardDiv.dataset.cardIndex = cardIndex;
+                    const checkbox = h('div', {
+                        className: `card-checkbox ${card.completed ? 'checked' : ''}`,
+                        onclick: async (e) => {
+                            e.stopPropagation();
+                            const lineNum = parseInt(cardDiv.dataset.lineNumber);
+                            const originalLine = cardDiv.dataset.originalLine;
+                            const newLine = originalLine.includes('- [x]')
+                                ? originalLine.replace('- [x]', '- [ ]')
+                                : originalLine.replace('- [ ]', '- [x]');
+                            await updateLineInFile(lineNum, newLine);
+                        }
+                    });
                     
-                    const checkbox = document.createElement('div');
-                    checkbox.className = `card-checkbox ${card.completed ? 'checked' : ''}`;
-                    checkbox.onclick = async (e) => {
-                        e.stopPropagation();
-                        const lineNum = parseInt(cardDiv.dataset.lineNumber);
-                        const originalLine = cardDiv.dataset.originalLine;
-                        
-                        const newLine = originalLine.includes('- [x]')
-                            ? originalLine.replace('- [x]', '- [ ]')
-                            : originalLine.replace('- [ ]', '- [x]');
-                        
-                        await updateLineInFile(lineNum, newLine);
-                    };
-                    cardDiv.appendChild(checkbox);
+                    cardDiv.append(checkbox, h('span', { textContent: card.text }));
                     
-                    const textSpan = document.createElement('span');
-                    textSpan.textContent = card.text;
-                    cardDiv.appendChild(textSpan);
-                    
-                    cardDiv.ondragstart = (e) => handleDragStart(e, cardDiv);
-                    cardDiv.ondragend = handleDragEnd;
-                    cardDiv.ondragenter = (e) => handleCardDragEnter(e, cardDiv, colIndex, cardIndex);
-
-                    cardList.appendChild(cardDiv);
-                    
-                    const indicator = document.createElement('div');
-                    indicator.className = 'drop-indicator';
-                    indicator.dataset.colIndex = colIndex;
-                    indicator.dataset.position = cardIndex + 1;
-                    cardList.appendChild(indicator);
+                    cardElements.push(
+                        cardDiv,
+                        h('div', {
+                            className: 'drop-indicator',
+                            dataset: { colIndex, position: cardIndex + 1 }
+                        })
+                    );
                 });
                 
                 if (visibleCards.length === 0) {
-                    const indicator = document.createElement('div');
-                    indicator.className = 'drop-indicator';
-                    indicator.dataset.colIndex = colIndex;
-                    indicator.dataset.position = 0;
-                    cardList.appendChild(indicator);
+                    cardElements.push(
+                        h('div', {
+                            className: 'drop-indicator',
+                            dataset: { colIndex, position: 0 }
+                        })
+                    );
                 }
-
-                colDiv.appendChild(cardList);
-
-                const footer = document.createElement('div');
-                footer.className = 'column-footer';
                 
-                const addCardBtn = document.createElement('button');
-                addCardBtn.className = 'add-card-btn';
-                addCardBtn.textContent = '+';
-                addCardBtn.title = 'Add card';
-                addCardBtn.onclick = () => {
-                    const form = footer.querySelector('.add-card-form');
-                    addCardBtn.style.display = 'none';
-                    form.classList.add('active');
-                    form.querySelector('input').focus();
-                };
-                footer.appendChild(addCardBtn);
+                const cardList = h('div', {
+                    className: 'card-list',
+                    dataset: { colIndex },
+                    ondragover: (e) => handleDragOver(e, colIndex, cardList),
+                    ondrop: (e) => handleDrop(e, colIndex),
+                    ondragleave: handleDragLeave
+                }, ...cardElements);
                 
-                const form = document.createElement('div');
-                form.className = 'add-card-form';
-                
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.placeholder = 'Card text...';
-                input.onkeypress = (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleCreateCard(colIndex, input, form, addCardBtn);
-                    }
-                };
-                form.appendChild(input);
-                
-                const buttons = document.createElement('div');
-                buttons.className = 'add-card-form-buttons';
-                
-                const createBtn = document.createElement('button');
-                createBtn.textContent = 'Add';
-                createBtn.onclick = () => handleCreateCard(colIndex, input, form, addCardBtn);
-                buttons.appendChild(createBtn);
-                
-                const cancelBtn = document.createElement('button');
-                cancelBtn.textContent = 'Cancel';
-                cancelBtn.onclick = () => {
-                    form.classList.remove('active');
+                const addCardForm = createAddForm('Card text...', async (text) => {
+                    await createCard(colIndex, text);
+                    addCardForm.hide();
                     addCardBtn.style.display = '';
-                    input.value = '';
-                };
-                buttons.appendChild(cancelBtn);
+                });
                 
-                form.appendChild(buttons);
-                footer.appendChild(form);
+                const addCardBtn = h('button', {
+                    className: 'add-card-btn',
+                    textContent: '+',
+                    title: 'Add card',
+                    onclick: () => {
+                        addCardBtn.style.display = 'none';
+                        addCardForm.show();
+                    }
+                });
                 
-                colDiv.appendChild(footer);
-                container.appendChild(colDiv);
+                return h('div', {
+                    className: 'column',
+                    dataset: { colIndex }
+                },
+                    h('div', { className: 'column-header', textContent: column.name }),
+                    cardList,
+                    h('div', { className: 'column-footer' }, addCardBtn, addCardForm)
+                );
             });
-
-            const addColumnDiv = document.createElement('div');
-            addColumnDiv.className = 'add-column';
             
-            const addBtn = document.createElement('button');
-            addBtn.className = 'add-column-btn';
-            addBtn.textContent = '+';
-            addBtn.title = 'Add column';
-            addBtn.onclick = () => {
-                const form = addColumnDiv.querySelector('.add-column-form');
-                form.classList.toggle('active');
-                if (form.classList.contains('active')) {
-                    form.querySelector('input').focus();
+            const addColumnForm = createAddForm('Column name...', async (name) => {
+                const section = state.sections[state.currentSectionIndex];
+                if (section.columns.some(c => c.name === name)) {
+                    alert('A column with this name already exists');
+                    return;
                 }
-            };
-            addColumnDiv.appendChild(addBtn);
+                await createColumn(name);
+                addColumnForm.hide();
+            });
+            addColumnForm.className = 'add-column-form';
             
-            const form = document.createElement('div');
-            form.className = 'add-column-form';
+            const addColumnDiv = h('div', { className: 'add-column' },
+                h('button', {
+                    className: 'add-column-btn',
+                    textContent: '+',
+                    title: 'Add column',
+                    onclick: () => addColumnForm.classList.toggle('active')
+                }),
+                addColumnForm
+            );
             
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.placeholder = 'Column name...';
-            input.onkeypress = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleCreateColumn(input, form);
-                }
-            };
-            form.appendChild(input);
-            
-            const buttons = document.createElement('div');
-            buttons.className = 'add-column-form-buttons';
-            
-            const createBtn = document.createElement('button');
-            createBtn.textContent = 'Create';
-            createBtn.onclick = () => handleCreateColumn(input, form);
-            buttons.appendChild(createBtn);
-            
-            const cancelBtn = document.createElement('button');
-            cancelBtn.textContent = 'Cancel';
-            cancelBtn.onclick = () => {
-                form.classList.remove('active');
-                input.value = '';
-            };
-            buttons.appendChild(cancelBtn);
-            
-            form.appendChild(buttons);
-            addColumnDiv.appendChild(form);
-            
-            container.appendChild(addColumnDiv);
-
+            container.replaceChildren(...columns, addColumnDiv);
             showScreen('board-screen');
         }
-
-        async function handleCreateColumn(input, form) {
-            const columnName = input.value.trim();
-            
-            if (!columnName) {
-                alert('Please enter a column name');
-                return;
-            }
-            
-            const section = state.sections[state.currentSectionIndex];
-            if (section.columns.some(c => c.name === columnName)) {
-                alert('A column with this name already exists');
-                return;
-            }
-            
-            form.classList.remove('active');
-            input.value = '';
-            
-            await createColumn(columnName);
-        }
-
-        async function handleCreateCard(colIndex, input, form, addCardBtn) {
-            const cardText = input.value.trim();
-            
-            if (!cardText) {
-                alert('Please enter card text');
-                return;
-            }
-            
-            form.classList.remove('active');
-            addCardBtn.style.display = '';
-            input.value = '';
-            
-            await createCard(colIndex, cardText);
-        }
-
-        // --- Actions ---
 
         async function selectSection(index) {
             state.currentSectionIndex = index;
@@ -1171,8 +1108,6 @@ chmod 755 kbtd
             
             renderBoard();
         }
-
-        // --- Drag and Drop ---
 
         function handleDragStart(e, cardDiv) {
             dragState.source = {
@@ -1330,12 +1265,9 @@ chmod 755 kbtd
             return false;
         }
 
-        // --- Initialization & Polling ---
-
         async function init() {
-            const currentUrl = window.location.href.split('?')[0];
-            document.getElementById('current-url-landing').textContent = currentUrl;
-            document.getElementById('current-url-section').textContent = currentUrl;
+            insertInstallInstructions('landing-instructions');
+            insertInstallInstructions('section-instructions');
             
             const params = new URLSearchParams(window.location.search);
             state.filePath = params.get('file');
@@ -1381,8 +1313,6 @@ chmod 755 kbtd
                 }
             }, 250);
         }
-
-        // --- Event Listeners ---
 
         document.getElementById('open-file-btn').onclick = async () => {
             try {
