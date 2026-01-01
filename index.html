@@ -411,6 +411,13 @@
         pre a {
             text-decoration: underline;
         }
+
+        code {
+            background: transparent;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
@@ -422,8 +429,14 @@
             <p>To get started, open a Markdown file containing your tasks.</p>
             <button id="open-file-btn">Open TODO.md</button>
             <p>Install launch script:</p>
-            <pre id="launcher-instructions-landing" style="display:none">kbtd # &lt;- right click and save as
-chmod 755 kbtd</pre>
+            <pre>curl -O <a href="https://mccormick.cx/apps/kanban-todo/kbtd">https://mccormick.cx/apps/kanban-todo/kbtd</a>
+chmod 755 kbtd
+
+# If self-hosting, set KBTD_URL to your URL:
+# export KBTD_URL="<span id="current-url-landing"></span>"
+
+# Then launch with:
+./kbtd TODO.md</pre>
             <div id="landing-error" class="error" style="display:none"></div>
         </div>
 
@@ -444,8 +457,14 @@ chmod 755 kbtd</pre>
             </div>
             <button id="change-file-btn" style="margin-top: 1em">Change File</button>
             <p>Install launch script:</p>
-            <pre id="launcher-instructions-section" style="display:none">kbtd # &lt;- right click and save as
-chmod 755 kbtd</pre>
+            <pre>curl -O <a href="https://mccormick.cx/apps/kanban-todo/kbtd">https://mccormick.cx/apps/kanban-todo/kbtd</a>
+chmod 755 kbtd
+
+# If self-hosting, set KBTD_URL to your URL:
+# export KBTD_URL="<span id="current-url-section"></span>"
+
+# Then launch with:
+./kbtd TODO.md</pre>
         </div>
 
         <!-- Board Screen -->
@@ -481,8 +500,6 @@ chmod 755 kbtd</pre>
             currentDropTarget: null
         };
 
-        let launcherScriptBlob = null;
-
         // --- IndexedDB Helper ---
         const dbPromise = new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -516,45 +533,6 @@ chmod 755 kbtd</pre>
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
             });
-        }
-
-        // --- Launcher Script Loading ---
-        async function loadLauncherScript() {
-            try {
-                console.log('Loading launcher script...');
-                const response = await fetch('kbtd');
-                if (!response.ok) {
-                    console.error('Failed to load launcher script:', response.status);
-                    return;
-                }
-                
-                let scriptContent = await response.text();
-                console.log('Launcher script loaded, modifying URL...');
-                
-                const currentUrl = window.location.href.split('?')[0];
-                scriptContent = scriptContent.replace(
-                    /BASE_URL="\$\{KBTD_URL:-http:\/\/localhost:8000\}"/,
-                    `BASE_URL="\${KBTD_URL:-${currentUrl}}"`
-                );
-                
-                launcherScriptBlob = new Blob([scriptContent], { type: 'application/x-sh' });
-                const blobUrl = URL.createObjectURL(launcherScriptBlob);
-                
-                const landingInstructions = document.getElementById('launcher-instructions-landing');
-                const sectionInstructions = document.getElementById('launcher-instructions-section');
-                
-                landingInstructions.innerHTML = `<a href="${blobUrl}" download="kbtd">kbtd</a> # &lt;- right click and save as
-chmod 755 kbtd`;
-                landingInstructions.style.display = 'block';
-                
-                sectionInstructions.innerHTML = `<a href="${blobUrl}" download="kbtd">kbtd</a> # &lt;- right click and save as
-chmod 755 kbtd`;
-                sectionInstructions.style.display = 'block';
-                
-                console.log('Launcher script ready for download');
-            } catch (err) {
-                console.error('Error loading launcher script:', err);
-            }
         }
 
         // --- Markdown Parsing ---
@@ -1355,7 +1333,9 @@ chmod 755 kbtd`;
         // --- Initialization & Polling ---
 
         async function init() {
-            loadLauncherScript();
+            const currentUrl = window.location.href.split('?')[0];
+            document.getElementById('current-url-landing').textContent = currentUrl;
+            document.getElementById('current-url-section').textContent = currentUrl;
             
             const params = new URLSearchParams(window.location.search);
             state.filePath = params.get('file');
