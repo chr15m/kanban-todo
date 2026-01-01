@@ -126,6 +126,79 @@
             display: flex;
             gap: 0.5em;
             align-items: center;
+            position: relative;
+        }
+
+        .burger-btn {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        .burger-btn:hover {
+            background: var(--shade);
+            opacity: 1;
+        }
+
+        .burger-btn svg {
+            width: 24px;
+            height: 24px;
+            stroke: var(--fg);
+        }
+
+        .burger-menu {
+            position: absolute;
+            right: 0;
+            top: 50px;
+            background: var(--bg);
+            border: .1rem solid var(--fg);
+            border-radius: var(--radius);
+            padding: 0.5em 0;
+            min-width: 250px;
+            z-index: 100;
+            display: none;
+        }
+
+        .burger-menu.active {
+            display: block;
+        }
+
+        .burger-menu-item {
+            padding: 0.75em 1em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75em;
+            background: transparent;
+            border: none;
+            color: var(--fg);
+            width: 100%;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        .burger-menu-item:hover {
+            background: var(--shade);
+            opacity: 1;
+        }
+
+        .burger-menu-checkbox {
+            width: 1.2em;
+            height: 1.2em;
+            border: .1rem solid var(--fg);
+            border-radius: 2px;
+            background: transparent;
+            flex-shrink: 0;
+        }
+
+        .burger-menu-checkbox.checked {
+            background: var(--fg);
         }
 
         .board {
@@ -601,8 +674,22 @@ chmod 755 kbtd
             <header>
                 <h2 id="board-title" style="margin:0">Project Name</h2>
                 <div class="header-controls">
-                    <button id="toggle-completed-btn">Show Completed</button>
-                    <button id="back-btn">Projects</button>
+                    <button id="burger-btn" class="burger-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M4 8l16 0" />
+                            <path d="M4 16l16 0" />
+                        </svg>
+                    </button>
+                    <div id="burger-menu" class="burger-menu">
+                        <button class="burger-menu-item" id="toggle-completed-menu-item">
+                            <div class="burger-menu-checkbox" id="completed-checkbox"></div>
+                            <span>Show completed</span>
+                        </button>
+                        <button class="burger-menu-item" id="back-menu-item">
+                            <span>Projects</span>
+                        </button>
+                    </div>
                 </div>
             </header>
             <div id="board-container" class="board"></div>
@@ -1161,6 +1248,19 @@ chmod 755 kbtd
             $$('.card-menu').forEach(menu => menu.classList.remove('active'));
         }
 
+        function closeBurgerMenu() {
+            $('#burger-menu').classList.remove('active');
+        }
+
+        function updateCompletedCheckbox() {
+            const checkbox = $('#completed-checkbox');
+            if (state.showCompleted) {
+                checkbox.classList.add('checked');
+            } else {
+                checkbox.classList.remove('checked');
+            }
+        }
+
         function openMoveModal(cardLineNumber, cardOriginalLine, sourceColIndex, sourceCardIndex) {
             moveModalState = {
                 cardLineNumber,
@@ -1241,8 +1341,7 @@ chmod 755 kbtd
 
             $('#board-title').textContent = section.name;
             
-            const toggleBtn = $('#toggle-completed-btn');
-            toggleBtn.textContent = state.showCompleted ? 'Hide Completed' : 'Show Completed';
+            updateCompletedCheckbox();
             
             const container = $('#board-container');
             
@@ -1585,6 +1684,9 @@ chmod 755 kbtd
             if (!e.target.closest('.card-menu') && !e.target.closest('.card-menu-btn')) {
                 closeAllCardMenus();
             }
+            if (!e.target.closest('.burger-menu') && !e.target.closest('.burger-btn')) {
+                closeBurgerMenu();
+            }
         });
 
         async function init() {
@@ -1673,13 +1775,18 @@ chmod 755 kbtd
             }
         };
 
-        $('#back-btn').onclick = () => {
-            state.currentSectionIndex = -1;
-            renderSectionPicker();
+        $('#burger-btn').onclick = () => {
+            $('#burger-menu').classList.toggle('active');
         };
 
-        $('#toggle-completed-btn').onclick = () => {
+        $('#toggle-completed-menu-item').onclick = () => {
             toggleShowCompleted();
+        };
+
+        $('#back-menu-item').onclick = () => {
+            closeBurgerMenu();
+            state.currentSectionIndex = -1;
+            renderSectionPicker();
         };
 
         $('#change-file-btn').onclick = () => {
