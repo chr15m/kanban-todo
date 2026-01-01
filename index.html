@@ -623,25 +623,8 @@ chmod 755 kbtd`;
 
         // --- File Operations ---
 
-        async function writeFile(text) {
-            try {
-                const writable = await state.fileHandle.createWritable();
-                await writable.write(text);
-                await writable.close();
-                console.log('File written successfully');
-                
-                const file = await state.fileHandle.getFile();
-                state.lastModified = file.lastModified;
-                
-                reloadFromText(text);
-            } catch (err) {
-                console.error('Error writing file:', err);
-                alert('Error saving file.');
-            }
-        }
-
         function reloadFromText(text) {
-            console.log('Reloading from text after write');
+            console.log('Reloading from text');
             state.sections = parseMarkdown(text);
             console.log('Parsed sections:', state.sections);
             
@@ -649,6 +632,24 @@ chmod 755 kbtd`;
                 renderBoard();
             } else {
                 renderSectionPicker();
+            }
+        }
+
+        async function writeFile(text) {
+            try {
+                console.log('Writing file and updating UI');
+                reloadFromText(text);
+                
+                const writable = await state.fileHandle.createWritable();
+                await writable.write(text);
+                await writable.close();
+                console.log('File written successfully');
+                
+                const file = await state.fileHandle.getFile();
+                state.lastModified = file.lastModified;
+            } catch (err) {
+                console.error('Error writing file:', err);
+                alert('Error saving file.');
             }
         }
 
