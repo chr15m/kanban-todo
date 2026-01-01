@@ -4,6 +4,9 @@ A Kanban board for your Markdown TODO file.
 - Runs 100% in your browser - no server, no database
 - Single HTML file - upload to self-host
 - CLI tool to launch as a Chrome app: `kbtd TODO.md`
+- Two-way binding between UI and text file
+
+![Screencast of TODO Kanban editing a TODO.md file](./screencast.gif)
 
 ## Format
 

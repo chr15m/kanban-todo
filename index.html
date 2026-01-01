@@ -648,6 +648,7 @@ chmod 755 kbtd
                 <li>Runs 100% in your browser - no server, no database</li>
                 <li>Single HTML file - upload to self-host</li>
                 <li>CLI tool to launch as a Chrome app: <code>kbtd TODO.md</code></li>
+                <li>Two-way binding between UI and text file</li>
             </ul>
             <button id="open-file-btn">Open TODO.md</button>
             <div id="landing-instructions"></div>
@@ -668,7 +669,6 @@ chmod 755 kbtd
                 <button id="create-project-btn">Create</button>
             </div>
             <button id="change-file-btn" style="margin-top: 1em">Change File</button>
-            <div id="section-instructions"></div>
         </div>
 
         <div id="board-screen" class="screen">
@@ -690,6 +690,9 @@ chmod 755 kbtd
                         <button class="burger-menu-item" id="back-menu-item">
                             <span>Projects</span>
                         </button>
+                        <button class="burger-menu-item" id="about-menu-item">
+                            <span>About</span>
+                        </button>
                     </div>
                 </div>
             </header>
@@ -710,6 +713,25 @@ chmod 755 kbtd
                 <div class="modal-buttons">
                     <button id="move-cancel-btn">Cancel</button>
                     <button id="move-confirm-btn">Move</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="about-modal" class="modal">
+            <div class="modal-content">
+                <h3>About Kanban TODO</h3>
+                <p>A Kanban board for your Markdown TODO file.</p>
+                <ul style="text-align: left;">
+                    <li>Drag-and-drop visual editing of plain text Markdown</li>
+                    <li>Runs 100% in your browser - no server, no database</li>
+                    <li>Single HTML file - upload to self-host</li>
+                    <li>CLI tool to launch as a Chrome app: <code>kbtd TODO.md</code></li>
+                </ul>
+                <div id="about-instructions"></div>
+                <p><a href="https://github.com/chr15m/kanban-todo" target="_blank">Source code for self-hosting</a></p>
+                <p>Copyright &copy; Chris McCormick 2025</p>
+                <div class="modal-buttons">
+                    <button id="about-close-btn">Close</button>
                 </div>
             </div>
         </div>
@@ -1312,6 +1334,14 @@ chmod 755 kbtd
             };
         }
 
+        function openAboutModal() {
+            $('#about-modal').classList.add('active');
+        }
+
+        function closeAboutModal() {
+            $('#about-modal').classList.remove('active');
+        }
+
         async function confirmMove() {
             const targetSectionIndex = parseInt($('#target-project-select').value);
             const targetColumnIndex = parseInt($('#target-column-select').value);
@@ -1688,11 +1718,14 @@ chmod 755 kbtd
             if (!e.target.closest('.burger-menu') && !e.target.closest('.burger-btn')) {
                 closeBurgerMenu();
             }
+            if (e.target.id === 'about-modal') {
+                closeAboutModal();
+            }
         });
 
         async function init() {
             insertInstallInstructions('landing-instructions');
-            insertInstallInstructions('section-instructions');
+            insertInstallInstructions('about-instructions');
             
             const params = new URLSearchParams(window.location.search);
             state.filePath = params.get('file');
@@ -1788,6 +1821,15 @@ chmod 755 kbtd
             closeBurgerMenu();
             state.currentSectionIndex = -1;
             renderSectionPicker();
+        };
+
+        $('#about-menu-item').onclick = () => {
+            closeBurgerMenu();
+            openAboutModal();
+        };
+
+        $('#about-close-btn').onclick = () => {
+            closeAboutModal();
         };
 
         $('#change-file-btn').onclick = () => {
