@@ -423,7 +423,7 @@
 chmod 755 kbtd
 
 # If self-hosting, set KBTD_URL to your URL:
-# export KBTD_URL="<span class="current-url"></span>"
+# export KBTD_URL="<span class="current-url">https://mccormick.cx/apps/kanban-todo/kbtd</span>"
 
 # Then launch with:
 ./kbtd TODO.md</pre>
@@ -469,6 +469,9 @@ chmod 755 kbtd
     </div>
 
     <script>
+        const $ = document.querySelector.bind(document);
+        const $$ = document.querySelectorAll.bind(document);
+
         const DB_NAME = 'kbtd';
         const DB_VERSION = 1;
         const STORE_NAME = 'fileHandles';
@@ -504,11 +507,11 @@ chmod 755 kbtd
         }
 
         function insertInstallInstructions(containerId) {
-            const template = document.getElementById('install-instructions-template');
+            const template = $('#install-instructions-template');
             const clone = template.content.cloneNode(true);
             const currentUrl = window.location.href.split('?')[0];
             clone.querySelector('.current-url').textContent = currentUrl;
-            document.getElementById(containerId).appendChild(clone);
+            $(`#${containerId}`).appendChild(clone);
         }
 
         function createAddForm(placeholder, onSubmit) {
@@ -919,12 +922,12 @@ chmod 755 kbtd
         }
 
         function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
+            $$('.screen').forEach(el => el.classList.remove('active'));
+            $(`#${screenId}`).classList.add('active');
         }
 
         function renderSectionPicker() {
-            const list = document.getElementById('section-list');
+            const list = $('#section-list');
             list.replaceChildren(
                 ...state.sections.map((section, index) => 
                     h('li', {},
@@ -937,7 +940,7 @@ chmod 755 kbtd
                 )
             );
             
-            document.getElementById('new-project-input').value = '';
+            $('#new-project-input').value = '';
             showScreen('section-screen');
         }
 
@@ -945,12 +948,12 @@ chmod 755 kbtd
             const section = state.sections[state.currentSectionIndex];
             if (!section) return renderSectionPicker();
 
-            document.getElementById('board-title').textContent = section.name;
+            $('#board-title').textContent = section.name;
             
-            const toggleBtn = document.getElementById('toggle-completed-btn');
+            const toggleBtn = $('#toggle-completed-btn');
             toggleBtn.textContent = state.showCompleted ? 'Hide Completed' : 'Show Completed';
             
-            const container = document.getElementById('board-container');
+            const container = $('#board-container');
             
             const columns = section.columns.map((column, colIndex) => {
                 const visibleCards = column.cards.filter(card => 
@@ -1129,7 +1132,7 @@ chmod 755 kbtd
         }
 
         function clearDropIndicators() {
-            document.querySelectorAll('.drop-indicator').forEach(el => {
+            $$('.drop-indicator').forEach(el => {
                 el.classList.remove('active');
             });
         }
@@ -1156,7 +1159,7 @@ chmod 755 kbtd
             dragState.currentDropTarget = { colIndex, position };
             
             clearDropIndicators();
-            const indicator = document.querySelector(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
+            const indicator = $(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
             if (indicator) {
                 indicator.classList.add('active');
             }
@@ -1209,7 +1212,7 @@ chmod 755 kbtd
                     dragState.currentDropTarget = { colIndex, position };
                     
                     clearDropIndicators();
-                    const indicator = document.querySelector(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
+                    const indicator = $(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
                     if (indicator) {
                         indicator.classList.add('active');
                     }
@@ -1290,9 +1293,9 @@ chmod 755 kbtd
                     }
                 } else {
                     showScreen('landing-screen');
-                    document.getElementById('landing-error').textContent = 
+                    $('#landing-error').textContent = 
                         `Please select the file: ${state.filePath}`;
-                    document.getElementById('landing-error').style.display = 'block';
+                    $('#landing-error').style.display = 'block';
                 }
             } catch (err) {
                 console.error(err);
@@ -1314,7 +1317,7 @@ chmod 755 kbtd
             }, 250);
         }
 
-        document.getElementById('open-file-btn').onclick = async () => {
+        $('#open-file-btn').onclick = async () => {
             try {
                 const [handle] = await window.showOpenFilePicker({
                     id: 'kbtd-todo-file',
@@ -1342,7 +1345,7 @@ chmod 755 kbtd
             }
         };
 
-        document.getElementById('grant-permission-btn').onclick = async () => {
+        $('#grant-permission-btn').onclick = async () => {
             if (state.fileHandle) {
                 if (await checkPermission(state.fileHandle)) {
                     await loadFile();
@@ -1351,21 +1354,21 @@ chmod 755 kbtd
             }
         };
 
-        document.getElementById('back-btn').onclick = () => {
+        $('#back-btn').onclick = () => {
             state.currentSectionIndex = -1;
             renderSectionPicker();
         };
 
-        document.getElementById('toggle-completed-btn').onclick = () => {
+        $('#toggle-completed-btn').onclick = () => {
             toggleShowCompleted();
         };
 
-        document.getElementById('change-file-btn').onclick = () => {
-            document.getElementById('open-file-btn').click();
+        $('#change-file-btn').onclick = () => {
+            $('#open-file-btn').click();
         };
 
-        document.getElementById('create-project-btn').onclick = async () => {
-            const input = document.getElementById('new-project-input');
+        $('#create-project-btn').onclick = async () => {
+            const input = $('#new-project-input');
             const projectName = input.value.trim();
             
             if (!projectName) {
@@ -1381,9 +1384,9 @@ chmod 755 kbtd
             await createProject(projectName);
         };
 
-        document.getElementById('new-project-input').onkeypress = (e) => {
+        $('#new-project-input').onkeypress = (e) => {
             if (e.key === 'Enter') {
-                document.getElementById('create-project-btn').click();
+                $('#create-project-btn').click();
             }
         };
 
