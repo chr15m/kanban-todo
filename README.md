@@ -7,7 +7,7 @@ A Kanban board for your Markdown TODO file.
 
 ## Format
 
-The text based format is designed to be simple for humans and LLMs to read and modify.
+The text based format is designed to be simple for humans, git, and LLMs to read and edit.
 
 ```
 # Project name
