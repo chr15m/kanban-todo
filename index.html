@@ -506,6 +506,10 @@ chmod 755 kbtd
             return el;
         }
 
+        function getDataInt(el, key) {
+            return parseInt(el.dataset[key]);
+        }
+
         function insertInstallInstructions(containerId) {
             const template = $('#install-instructions-template');
             const clone = template.content.cloneNode(true);
@@ -992,7 +996,7 @@ chmod 755 kbtd
                         className: `card-checkbox ${card.completed ? 'checked' : ''}`,
                         onclick: async (e) => {
                             e.stopPropagation();
-                            const lineNum = parseInt(cardDiv.dataset.lineNumber);
+                            const lineNum = getDataInt(cardDiv, 'lineNumber');
                             const originalLine = cardDiv.dataset.originalLine;
                             const newLine = originalLine.includes('- [x]')
                                 ? originalLine.replace('- [x]', '- [ ]')
@@ -1112,11 +1116,23 @@ chmod 755 kbtd
             renderBoard();
         }
 
+        function clearDropIndicators() {
+            $$('.drop-indicator').forEach(el => el.classList.remove('active'));
+        }
+
+        function setActiveDropIndicator(colIndex, position) {
+            console.log('Setting active drop indicator: col', colIndex, 'position', position);
+            dragState.currentDropTarget = { colIndex, position };
+            clearDropIndicators();
+            const indicator = $(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
+            if (indicator) indicator.classList.add('active');
+        }
+
         function handleDragStart(e, cardDiv) {
             dragState.source = {
-                lineNumber: parseInt(cardDiv.dataset.lineNumber),
-                colIndex: parseInt(cardDiv.dataset.colIndex),
-                cardIndex: parseInt(cardDiv.dataset.cardIndex)
+                lineNumber: getDataInt(cardDiv, 'lineNumber'),
+                colIndex: getDataInt(cardDiv, 'colIndex'),
+                cardIndex: getDataInt(cardDiv, 'cardIndex')
             };
             e.target.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
@@ -1131,12 +1147,6 @@ chmod 755 kbtd
             dragState.currentDropTarget = null;
         }
 
-        function clearDropIndicators() {
-            $$('.drop-indicator').forEach(el => {
-                el.classList.remove('active');
-            });
-        }
-
         function handleCardDragEnter(e, cardDiv, colIndex, cardIndex) {
             if (!dragState.source) return;
             
@@ -1145,24 +1155,9 @@ chmod 755 kbtd
             
             const rect = cardDiv.getBoundingClientRect();
             const midpoint = rect.top + rect.height / 2;
-            const mouseY = e.clientY;
+            const position = e.clientY < midpoint ? cardIndex : cardIndex + 1;
             
-            let position;
-            if (mouseY < midpoint) {
-                position = cardIndex;
-            } else {
-                position = cardIndex + 1;
-            }
-            
-            console.log('Card drag enter: col', colIndex, 'position', position);
-            
-            dragState.currentDropTarget = { colIndex, position };
-            
-            clearDropIndicators();
-            const indicator = $(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
-            if (indicator) {
-                indicator.classList.add('active');
-            }
+            setActiveDropIndicator(colIndex, position);
         }
 
         function handleDragOver(e, colIndex, cardList) {
@@ -1175,12 +1170,7 @@ chmod 755 kbtd
             
             if (cards.length === 0) {
                 console.log('Drag over empty column', colIndex);
-                dragState.currentDropTarget = { colIndex, position: 0 };
-                clearDropIndicators();
-                const indicator = cardList.querySelector('.drop-indicator');
-                if (indicator) {
-                    indicator.classList.add('active');
-                }
+                setActiveDropIndicator(colIndex, 0);
                 return;
             }
             
@@ -1201,21 +1191,13 @@ chmod 755 kbtd
             });
             
             if (closestCard) {
-                const cardIndex = parseInt(closestCard.dataset.cardIndex);
+                const cardIndex = getDataInt(closestCard, 'cardIndex');
                 const position = insertBefore ? cardIndex : cardIndex + 1;
                 
                 if (!dragState.currentDropTarget || 
                     dragState.currentDropTarget.colIndex !== colIndex || 
                     dragState.currentDropTarget.position !== position) {
-                    
-                    console.log('Drag over: col', colIndex, 'position', position);
-                    dragState.currentDropTarget = { colIndex, position };
-                    
-                    clearDropIndicators();
-                    const indicator = $(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
-                    if (indicator) {
-                        indicator.classList.add('active');
-                    }
+                    setActiveDropIndicator(colIndex, position);
                 }
             }
         }
