@@ -687,110 +687,112 @@ chmod 755 kbtd
             }
         }
 
-        async function updateLineInFile(lineNum, newText) {
-            console.log('updateLineInFile:', lineNum, newText);
+        async function modifyFileLines(fn) {
             const file = await state.fileHandle.getFile();
             const text = await file.text();
             const lines = text.split('\n');
-            lines[lineNum] = newText;
+            fn(lines);
             await writeFile(lines.join('\n'));
+        }
+
+        async function updateLineInFile(lineNum, newText) {
+            console.log('updateLineInFile:', lineNum, newText);
+            await modifyFileLines(lines => {
+                lines[lineNum] = newText;
+            });
         }
 
         async function moveLineInFile(fromLine, toLine, targetColumnIndex, insertPosition) {
             console.log('moveLineInFile: from line', fromLine, 'to line', toLine, 'targetColumnIndex:', targetColumnIndex, 'insertPosition:', insertPosition);
-            const file = await state.fileHandle.getFile();
-            const text = await file.text();
-            const lines = text.split('\n');
-            
-            const section = state.sections[state.currentSectionIndex];
-            const targetColumn = section.columns[targetColumnIndex];
-            const targetColumnIsEmpty = targetColumn.cards.length === 0;
-            const isInsertingAtBottom = insertPosition === targetColumn.cards.length;
-            
-            console.log('Before move, source line', fromLine, '=', lines[fromLine]);
-            console.log('Target column is empty:', targetColumnIsEmpty);
-            console.log('Inserting at bottom:', isInsertingAtBottom);
-            
-            const [movedLine] = lines.splice(fromLine, 1);
-            
-            let actualInsertLine;
-            
-            if (targetColumnIsEmpty) {
-                console.log('Moving to empty column - inserting after header');
-                actualInsertLine = targetColumn.headerLineNumber + 1;
+            await modifyFileLines(lines => {
+                const section = state.sections[state.currentSectionIndex];
+                const targetColumn = section.columns[targetColumnIndex];
+                const targetColumnIsEmpty = targetColumn.cards.length === 0;
+                const isInsertingAtBottom = insertPosition === targetColumn.cards.length;
                 
-                if (actualInsertLine < lines.length && lines[actualInsertLine].trim() === '') {
-                    lines.splice(actualInsertLine, 0, movedLine);
-                } else {
-                    lines.splice(actualInsertLine, 0, '', movedLine);
-                }
+                console.log('Before move, source line', fromLine, '=', lines[fromLine]);
+                console.log('Target column is empty:', targetColumnIsEmpty);
+                console.log('Inserting at bottom:', isInsertingAtBottom);
                 
-                const afterLine = actualInsertLine + (lines[actualInsertLine].trim() === '' ? 2 : 1);
-                if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
-                    lines.splice(afterLine, 0, '');
-                }
-            } else {
-                if (insertPosition === 0) {
-                    console.log('Inserting at start of column');
+                const [movedLine] = lines.splice(fromLine, 1);
+                
+                let actualInsertLine;
+                
+                if (targetColumnIsEmpty) {
+                    console.log('Moving to empty column - inserting after header');
                     actualInsertLine = targetColumn.headerLineNumber + 1;
                     
                     if (actualInsertLine < lines.length && lines[actualInsertLine].trim() === '') {
-                        actualInsertLine++;
-                    }
-                    
-                    lines.splice(actualInsertLine, 0, movedLine);
-                } else {
-                    console.log('Inserting at position', insertPosition);
-                    const cardBefore = targetColumn.cards[insertPosition - 1];
-                    actualInsertLine = cardBefore.lineNumber + 1;
-                    if (cardBefore.nestedLines.length > 0) {
-                        actualInsertLine += cardBefore.nestedLines.length;
-                    }
-                    
-                    if (fromLine < actualInsertLine) {
-                        actualInsertLine--;
-                    }
-                    
-                    if (actualInsertLine > 0 && lines[actualInsertLine - 1].trim() === '') {
-                        console.log('Line before target is blank, replacing it');
-                        lines[actualInsertLine - 1] = movedLine;
-                    } else {
-                        console.log('Inserting at target position');
                         lines.splice(actualInsertLine, 0, movedLine);
+                    } else {
+                        lines.splice(actualInsertLine, 0, '', movedLine);
                     }
                     
-                    if (isInsertingAtBottom) {
-                        const movedLineIndex = lines[actualInsertLine - 1] === movedLine ? actualInsertLine - 1 : actualInsertLine;
-                        const afterLine = movedLineIndex + 1;
-                        if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
-                            console.log('Inserting at bottom - ensuring blank line after moved item at line', afterLine);
-                            lines.splice(afterLine, 0, '');
+                    const afterLine = actualInsertLine + (lines[actualInsertLine].trim() === '' ? 2 : 1);
+                    if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
+                        lines.splice(afterLine, 0, '');
+                    }
+                } else {
+                    if (insertPosition === 0) {
+                        console.log('Inserting at start of column');
+                        actualInsertLine = targetColumn.headerLineNumber + 1;
+                        
+                        if (actualInsertLine < lines.length && lines[actualInsertLine].trim() === '') {
+                            actualInsertLine++;
+                        }
+                        
+                        lines.splice(actualInsertLine, 0, movedLine);
+                    } else {
+                        console.log('Inserting at position', insertPosition);
+                        const cardBefore = targetColumn.cards[insertPosition - 1];
+                        actualInsertLine = cardBefore.lineNumber + 1;
+                        if (cardBefore.nestedLines.length > 0) {
+                            actualInsertLine += cardBefore.nestedLines.length;
+                        }
+                        
+                        if (fromLine < actualInsertLine) {
+                            actualInsertLine--;
+                        }
+                        
+                        if (actualInsertLine > 0 && lines[actualInsertLine - 1].trim() === '') {
+                            console.log('Line before target is blank, replacing it');
+                            lines[actualInsertLine - 1] = movedLine;
+                        } else {
+                            console.log('Inserting at target position');
+                            lines.splice(actualInsertLine, 0, movedLine);
+                        }
+                        
+                        if (isInsertingAtBottom) {
+                            const movedLineIndex = lines[actualInsertLine - 1] === movedLine ? actualInsertLine - 1 : actualInsertLine;
+                            const afterLine = movedLineIndex + 1;
+                            if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
+                                console.log('Inserting at bottom - ensuring blank line after moved item at line', afterLine);
+                                lines.splice(afterLine, 0, '');
+                            }
                         }
                     }
                 }
-            }
-            
-            console.log('After move, lines around target:');
-            for (let i = Math.max(0, actualInsertLine - 2); i <= Math.min(lines.length - 1, actualInsertLine + 2); i++) {
-                console.log(`  line ${i}: "${lines[i]}"`);
-            }
-            
-            await writeFile(lines.join('\n'));
+                
+                console.log('After move, lines around target:');
+                for (let i = Math.max(0, actualInsertLine - 2); i <= Math.min(lines.length - 1, actualInsertLine + 2); i++) {
+                    console.log(`  line ${i}: "${lines[i]}"`);
+                }
+            });
         }
 
         async function createProject(projectName) {
             console.log('Creating project:', projectName);
-            const file = await state.fileHandle.getFile();
-            const text = await file.text();
-            
-            let newText;
-            if (text.trim() === '') {
-                newText = `# ${projectName}\n\n## TODO\n\n## In Progress\n\n## Done\n`;
-            } else {
-                newText = text + (text.endsWith('\n') ? '' : '\n') + `\n# ${projectName}\n\n## TODO\n\n## In Progress\n\n## Done\n`;
-            }
-            
-            await writeFile(newText);
+            await modifyFileLines(lines => {
+                const text = lines.join('\n');
+                let newText;
+                if (text.trim() === '') {
+                    newText = `# ${projectName}\n\n## TODO\n\n## In Progress\n\n## Done\n`;
+                } else {
+                    newText = text + (text.endsWith('\n') ? '' : '\n') + `\n# ${projectName}\n\n## TODO\n\n## In Progress\n\n## Done\n`;
+                }
+                lines.length = 0;
+                lines.push(...newText.split('\n'));
+            });
             
             const newSectionIndex = state.sections.findIndex(s => s.name === projectName);
             if (newSectionIndex !== -1) {
@@ -800,79 +802,71 @@ chmod 755 kbtd
 
         async function createColumn(columnName) {
             console.log('Creating column:', columnName);
-            const file = await state.fileHandle.getFile();
-            const text = await file.text();
-            const lines = text.split('\n');
-            
-            const section = state.sections[state.currentSectionIndex];
-            
-            let insertLine;
-            if (section.columns.length === 0) {
-                insertLine = section.headerLineNumber + 1;
-            } else {
-                const lastColumn = section.columns[section.columns.length - 1];
-                insertLine = lastColumn.headerLineNumber + 1;
+            await modifyFileLines(lines => {
+                const section = state.sections[state.currentSectionIndex];
                 
-                while (insertLine < lines.length) {
-                    const line = lines[insertLine];
-                    if (line.startsWith('# ') || line.startsWith('## ')) {
-                        break;
+                let insertLine;
+                if (section.columns.length === 0) {
+                    insertLine = section.headerLineNumber + 1;
+                } else {
+                    const lastColumn = section.columns[section.columns.length - 1];
+                    insertLine = lastColumn.headerLineNumber + 1;
+                    
+                    while (insertLine < lines.length) {
+                        const line = lines[insertLine];
+                        if (line.startsWith('# ') || line.startsWith('## ')) {
+                            break;
+                        }
+                        insertLine++;
                     }
-                    insertLine++;
                 }
-            }
-            
-            console.log('Inserting new column at line', insertLine);
-            
-            if (insertLine > 0 && lines[insertLine - 1].trim() !== '') {
-                lines.splice(insertLine, 0, '');
-                insertLine++;
-            }
-            
-            lines.splice(insertLine, 0, `## ${columnName}`);
-            
-            if (insertLine + 1 >= lines.length || lines[insertLine + 1].trim() !== '') {
-                lines.splice(insertLine + 1, 0, '');
-            }
-            
-            await writeFile(lines.join('\n'));
-        }
-
-        async function createCard(columnIndex, cardText) {
-            console.log('Creating card in column', columnIndex, ':', cardText);
-            const file = await state.fileHandle.getFile();
-            const text = await file.text();
-            const lines = text.split('\n');
-            
-            const section = state.sections[state.currentSectionIndex];
-            const column = section.columns[columnIndex];
-            
-            let insertLine;
-            if (column.cards.length === 0) {
-                insertLine = column.headerLineNumber + 1;
                 
-                if (insertLine < lines.length && lines[insertLine].trim() === '') {
+                console.log('Inserting new column at line', insertLine);
+                
+                if (insertLine > 0 && lines[insertLine - 1].trim() !== '') {
+                    lines.splice(insertLine, 0, '');
                     insertLine++;
                 }
                 
-                lines.splice(insertLine, 0, `- [ ] ${cardText}`);
+                lines.splice(insertLine, 0, `## ${columnName}`);
                 
                 if (insertLine + 1 >= lines.length || lines[insertLine + 1].trim() !== '') {
                     lines.splice(insertLine + 1, 0, '');
                 }
-            } else {
-                const lastCard = column.cards[column.cards.length - 1];
-                insertLine = lastCard.lineNumber + 1;
-                if (lastCard.nestedLines.length > 0) {
-                    insertLine += lastCard.nestedLines.length;
+            });
+        }
+
+        async function createCard(columnIndex, cardText) {
+            console.log('Creating card in column', columnIndex, ':', cardText);
+            await modifyFileLines(lines => {
+                const section = state.sections[state.currentSectionIndex];
+                const column = section.columns[columnIndex];
+                
+                let insertLine;
+                if (column.cards.length === 0) {
+                    insertLine = column.headerLineNumber + 1;
+                    
+                    if (insertLine < lines.length && lines[insertLine].trim() === '') {
+                        insertLine++;
+                    }
+                    
+                    lines.splice(insertLine, 0, `- [ ] ${cardText}`);
+                    
+                    if (insertLine + 1 >= lines.length || lines[insertLine + 1].trim() !== '') {
+                        lines.splice(insertLine + 1, 0, '');
+                    }
+                } else {
+                    const lastCard = column.cards[column.cards.length - 1];
+                    insertLine = lastCard.lineNumber + 1;
+                    if (lastCard.nestedLines.length > 0) {
+                        insertLine += lastCard.nestedLines.length;
+                    }
+                    
+                    lines.splice(insertLine, 0, `- [ ] ${cardText}`);
                 }
                 
-                lines.splice(insertLine, 0, `- [ ] ${cardText}`);
-            }
-            
-            console.log('Inserted new card at line', insertLine);
-            
-            await writeFile(lines.join('\n'));
+                console.log('Inserted new card at line', insertLine);
+            });
         }
 
         async function loadFile() {
