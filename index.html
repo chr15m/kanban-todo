@@ -541,18 +541,57 @@
             gap: 0.5em;
         }
 
+        .recent-project-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+        }
+
         .recent-project-btn {
-            width: 100%;
+            flex-grow: 1;
             text-align: left;
             padding: 0.75em;
             background: transparent;
             color: var(--fg);
             border: .1rem solid var(--shade);
             font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
         }
 
         .recent-project-btn:hover {
             border-color: var(--fg);
+        }
+
+        .recent-project-btn.unavailable {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        .recent-project-btn.unavailable:hover {
+            border-color: var(--shade);
+            opacity: 0.5;
+        }
+
+        .recent-project-warning {
+            color: #f80;
+            font-size: 1.2em;
+        }
+
+        .remove-project-btn {
+            padding: 0.5em;
+            font-size: 0.8rem;
+            min-width: auto;
+            background: transparent;
+            color: var(--shade);
+            border: .1rem solid var(--shade);
+        }
+
+        .remove-project-btn:hover {
+            color: var(--fg);
+            border-color: var(--fg);
+            opacity: 1;
         }
 
         .error {
@@ -936,6 +975,17 @@ chmod 755 kbtd
             });
         }
 
+        async function removeFileHandle(path) {
+            const db = await dbPromise;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.delete(path);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
         async function getAllStoredProjects() {
             const db = await dbPromise;
             return new Promise((resolve, reject) => {
@@ -945,6 +995,23 @@ chmod 755 kbtd
                 request.onsuccess = () => resolve(request.result);
                 request.onerror = () => reject(request.error);
             });
+        }
+
+        async function validateFileHandle(handle) {
+            try {
+                const perm = await handle.queryPermission({ mode: 'readwrite' });
+                if (perm === 'granted') {
+                    await handle.getFile();
+                    return 'valid';
+                }
+                return 'needs-permission';
+            } catch (err) {
+                console.log('File handle validation failed:', err);
+                if (err.name === 'NotFoundError') {
+                    return 'not-found';
+                }
+                return 'error';
+            }
         }
 
         function parseMarkdown(text) {
@@ -1305,7 +1372,7 @@ chmod 755 kbtd
                 }
             } catch (err) {
                 console.error('Error loading file:', err);
-                alert('Error loading file. See console.');
+                throw err;
             }
         }
 
@@ -1808,26 +1875,33 @@ chmod 755 kbtd
             
             try {
                 const handle = await getFileHandle(projectName);
-                if (handle) {
-                    state.fileHandle = handle;
-                    const perm = await handle.queryPermission({ mode: 'readwrite' });
-                    if (perm === 'granted') {
-                        await loadFile();
-                        startPolling();
-                    } else {
-                        showScreen('permission-screen');
-                    }
-                } else {
+                if (!handle) {
                     $('#landing-error').textContent = 
                         `Could not find stored file handle for: ${projectName}`;
                     $('#landing-error').style.display = 'block';
+                    return;
+                }
+                
+                state.fileHandle = handle;
+                const perm = await handle.queryPermission({ mode: 'readwrite' });
+                if (perm === 'granted') {
+                    await loadFile();
+                    startPolling();
+                } else {
+                    showScreen('permission-screen');
                 }
             } catch (err) {
-                console.error(err);
+                console.error('Error loading project:', err);
                 $('#landing-error').textContent = 
-                    `Error loading project: ${projectName}`;
+                    `This file is no longer accessible. Please select it again.`;
                 $('#landing-error').style.display = 'block';
             }
+        }
+
+        async function removeRecentProject(projectName) {
+            console.log('Removing recent project:', projectName);
+            await removeFileHandle(projectName);
+            await renderRecentProjects();
         }
 
         async function renderRecentProjects() {
@@ -1836,17 +1910,41 @@ chmod 755 kbtd
                 console.log('Recent projects:', projects);
                 
                 if (projects.length > 0) {
+                    const projectsWithStatus = await Promise.all(
+                        projects.map(async (projectName) => {
+                            const handle = await getFileHandle(projectName);
+                            const status = handle ? await validateFileHandle(handle) : 'not-found';
+                            return { projectName, status };
+                        })
+                    );
+                    
                     const list = $('#recent-projects-list');
                     list.replaceChildren(
-                        ...projects.map(projectName => 
-                            h('li', {},
+                        ...projectsWithStatus.map(({ projectName, status }) => {
+                            const isClickable = status === 'valid' || status === 'needs-permission';
+                            const showWarning = status === 'not-found' || status === 'error';
+                            
+                            return h('li', { className: 'recent-project-item' },
                                 h('button', {
-                                    className: 'recent-project-btn',
-                                    textContent: projectName,
-                                    onclick: () => openRecentProject(projectName)
+                                    className: `recent-project-btn ${isClickable ? '' : 'unavailable'}`,
+                                    onclick: isClickable ? () => openRecentProject(projectName) : () => {
+                                        alert('This file is no longer accessible. Please select it again or remove it from the list.');
+                                    }
+                                },
+                                    showWarning ? h('span', { 
+                                        className: 'recent-project-warning',
+                                        textContent: '⚠ '
+                                    }) : null,
+                                    h('span', { textContent: projectName })
+                                ),
+                                h('button', {
+                                    className: 'remove-project-btn',
+                                    textContent: '×',
+                                    title: 'Remove from list',
+                                    onclick: () => removeRecentProject(projectName)
                                 })
-                            )
-                        )
+                            );
+                        })
                     );
                     $('#recent-projects').style.display = 'block';
                 } else {
@@ -1891,6 +1989,11 @@ chmod 755 kbtd
                 }
             } catch (err) {
                 console.error(err);
+                await renderRecentProjects();
+                showScreen('landing-screen');
+                $('#landing-error').textContent = 
+                    `Error loading file. Please select it again.`;
+                $('#landing-error').style.display = 'block';
             }
         }
 
