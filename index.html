@@ -500,6 +500,61 @@
             flex-grow: 1;
         }
 
+        .project-name-form {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5em;
+        }
+
+        .project-name-form label {
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .project-name-form .form-row {
+            display: flex;
+            gap: 0.5em;
+        }
+
+        .project-name-form input {
+            flex-grow: 1;
+        }
+
+        .recent-projects {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 2em;
+        }
+
+        .recent-projects h3 {
+            text-align: left;
+            margin-bottom: 0.5em;
+        }
+
+        .recent-projects-list {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5em;
+        }
+
+        .recent-project-btn {
+            width: 100%;
+            text-align: left;
+            padding: 0.75em;
+            background: transparent;
+            color: var(--fg);
+            border: .1rem solid var(--shade);
+            font-size: 0.9rem;
+        }
+
+        .recent-project-btn:hover {
+            border-color: var(--fg);
+        }
+
         .error {
             background-color: #782828;
             padding: 0.5em 1em;
@@ -650,7 +705,17 @@ chmod 755 kbtd
                 <li>CLI tool to launch as a Chrome app: <code>kbtd TODO.md</code></li>
                 <li>Two-way binding between UI and text file</li>
             </ul>
-            <button id="open-file-btn">Open TODO.md</button>
+            <div class="project-name-form">
+                <label for="project-name-input">Project name:</label>
+                <div class="form-row">
+                    <input type="text" id="project-name-input" placeholder="e.g. TODO, work, personal...">
+                    <button id="open-file-btn">Open TODO.md</button>
+                </div>
+            </div>
+            <div id="recent-projects" class="recent-projects" style="display:none">
+                <h3>Recent projects:</h3>
+                <ul id="recent-projects-list" class="recent-projects-list"></ul>
+            </div>
             <div id="landing-instructions"></div>
             <div id="landing-error" class="error" style="display:none"></div>
         </div>
@@ -867,6 +932,17 @@ chmod 755 kbtd
                 const store = tx.objectStore(STORE_NAME);
                 const request = store.put(handle, path);
                 request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getAllStoredProjects() {
+            const db = await dbPromise;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.getAllKeys();
+                request.onsuccess = () => resolve(request.result);
                 request.onerror = () => reject(request.error);
             });
         }
@@ -1723,6 +1799,65 @@ chmod 755 kbtd
             }
         });
 
+        async function openRecentProject(projectName) {
+            console.log('Opening recent project:', projectName);
+            state.filePath = projectName;
+            
+            const newUrl = `${window.location.pathname}?file=${encodeURIComponent(projectName)}`;
+            window.history.pushState({}, '', newUrl);
+            
+            try {
+                const handle = await getFileHandle(projectName);
+                if (handle) {
+                    state.fileHandle = handle;
+                    const perm = await handle.queryPermission({ mode: 'readwrite' });
+                    if (perm === 'granted') {
+                        await loadFile();
+                        startPolling();
+                    } else {
+                        showScreen('permission-screen');
+                    }
+                } else {
+                    $('#landing-error').textContent = 
+                        `Could not find stored file handle for: ${projectName}`;
+                    $('#landing-error').style.display = 'block';
+                }
+            } catch (err) {
+                console.error(err);
+                $('#landing-error').textContent = 
+                    `Error loading project: ${projectName}`;
+                $('#landing-error').style.display = 'block';
+            }
+        }
+
+        async function renderRecentProjects() {
+            try {
+                const projects = await getAllStoredProjects();
+                console.log('Recent projects:', projects);
+                
+                if (projects.length > 0) {
+                    const list = $('#recent-projects-list');
+                    list.replaceChildren(
+                        ...projects.map(projectName => 
+                            h('li', {},
+                                h('button', {
+                                    className: 'recent-project-btn',
+                                    textContent: projectName,
+                                    onclick: () => openRecentProject(projectName)
+                                })
+                            )
+                        )
+                    );
+                    $('#recent-projects').style.display = 'block';
+                } else {
+                    $('#recent-projects').style.display = 'none';
+                }
+            } catch (err) {
+                console.error('Error loading recent projects:', err);
+                $('#recent-projects').style.display = 'none';
+            }
+        }
+
         async function init() {
             insertInstallInstructions('landing-instructions');
             insertInstallInstructions('about-instructions');
@@ -1731,6 +1866,7 @@ chmod 755 kbtd
             state.filePath = params.get('file');
 
             if (!state.filePath) {
+                await renderRecentProjects();
                 showScreen('landing-screen');
                 return;
             }
@@ -1747,6 +1883,7 @@ chmod 755 kbtd
                         showScreen('permission-screen');
                     }
                 } else {
+                    await renderRecentProjects();
                     showScreen('landing-screen');
                     $('#landing-error').textContent = 
                         `Please select the file: ${state.filePath}`;
@@ -1773,6 +1910,14 @@ chmod 755 kbtd
         }
 
         $('#open-file-btn').onclick = async () => {
+            const projectNameInput = $('#project-name-input');
+            const projectName = projectNameInput.value.trim();
+            
+            if (!projectName) {
+                alert('Please enter a project name');
+                return;
+            }
+            
             try {
                 const [handle] = await window.showOpenFilePicker({
                     id: 'kbtd-todo-file',
@@ -1784,10 +1929,12 @@ chmod 755 kbtd
                 });
                 
                 state.fileHandle = handle;
+                state.filePath = projectName;
                 
-                if (state.filePath) {
-                    await storeFileHandle(state.filePath, handle);
-                }
+                await storeFileHandle(projectName, handle);
+                
+                const newUrl = `${window.location.pathname}?file=${encodeURIComponent(projectName)}`;
+                window.history.pushState({}, '', newUrl);
                 
                 await loadFile();
                 startPolling();
@@ -1800,12 +1947,22 @@ chmod 755 kbtd
             }
         };
 
+        $('#project-name-input').onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                $('#open-file-btn').click();
+            }
+        };
+
         $('#grant-permission-btn').onclick = async () => {
             if (state.fileHandle) {
                 if (await checkPermission(state.fileHandle)) {
                     await loadFile();
                     startPolling();
+                } else {
+                    showScreen('landing-screen');
                 }
+            } else {
+                showScreen('landing-screen');
             }
         };
 
@@ -1833,7 +1990,8 @@ chmod 755 kbtd
         };
 
         $('#change-file-btn').onclick = () => {
-            $('#open-file-btn').click();
+            showScreen('landing-screen');
+            $('#project-name-input').value = state.filePath || '';
         };
 
         $('#create-project-btn').onclick = async () => {
