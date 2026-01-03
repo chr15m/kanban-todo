@@ -75,7 +75,24 @@
             font-family: Helvetica, Arial, sans-serif;
         }
 
-        input::placeholder {
+        textarea {
+            appearance: none;
+            box-shadow: none;
+            box-sizing: inherit;
+            padding: .5rem .5rem;
+            width: 100%;
+            font-size: 1rem;
+            color: var(--fg);
+            background-color: var(--bg);
+            border: .1rem solid var(--fg);
+            border-radius: var(--radius);
+            font-family: monospace;
+            resize: vertical;
+            min-height: 150px;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
             color: var(--fg);
             font-style: italic;
             opacity: 1;
@@ -247,7 +264,7 @@
             padding: 0.75em;
             border-radius: var(--radius);
             border: .1rem solid var(--shade);
-            cursor: grab;
+            cursor: pointer;
             user-select: none;
             word-wrap: break-word;
             position: relative;
@@ -261,10 +278,6 @@
             border-color: var(--fg);
         }
 
-        .card:active {
-            cursor: grabbing;
-        }
-
         .card.completed {
             opacity: 0.6;
         }
@@ -272,6 +285,7 @@
         .card.dragging {
             opacity: 0.5;
             border: .1rem dashed var(--fg);
+            cursor: grabbing;
         }
 
         .card-text {
@@ -842,9 +856,15 @@ chmod 755 kbtd
 
         <div id="card-detail-modal" class="modal">
             <div class="modal-content">
-                <h3 id="card-detail-title">Card Details</h3>
-                <div class="card-detail-content" id="card-detail-content"></div>
-                <div class="modal-buttons">
+                <div class="modal-section">
+                    <label for="card-detail-title-input">Title:</label>
+                    <input type="text" id="card-detail-title-input">
+                </div>
+                <div class="modal-section">
+                    <label for="card-detail-content-textarea">Details:</label>
+                    <textarea id="card-detail-content-textarea" placeholder="Add details..."></textarea>
+                </div>
+                <div class="modal-buttons" id="card-detail-buttons">
                     <button id="card-detail-close-btn">Close</button>
                 </div>
             </div>
@@ -897,6 +917,13 @@ chmod 755 kbtd
             cardOriginalLine: null,
             sourceColIndex: null,
             sourceCardIndex: null
+        };
+
+        let cardDetailModalState = {
+            card: null,
+            originalTitle: '',
+            originalContent: '',
+            baseIndent: ''
         };
 
         function h(tag, props = {}, ...children) {
@@ -1043,6 +1070,65 @@ chmod 755 kbtd
             }
         }
 
+        function detectIndentInFile(text) {
+            const lines = text.split('\n');
+            let minIndent = null;
+            
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+                
+                const match = line.match(/^(\s+)/);
+                if (match) {
+                    const indent = match[1];
+                    if (minIndent === null || indent.length < minIndent.length) {
+                        minIndent = indent;
+                    }
+                }
+            }
+            
+            return minIndent || '  ';
+        }
+
+        function detectBaseIndent(nestedLines) {
+            if (nestedLines.length === 0) return '';
+            
+            let minIndent = null;
+            
+            for (const line of nestedLines) {
+                if (line.trim() === '') continue;
+                
+                const match = line.match(/^(\s+)/);
+                if (match) {
+                    const indent = match[1];
+                    if (minIndent === null || indent.length < minIndent.length) {
+                        minIndent = indent;
+                    }
+                }
+            }
+            
+            return minIndent || '';
+        }
+
+        function stripBaseIndent(nestedLines, baseIndent) {
+            if (!baseIndent) return nestedLines.join('\n');
+            
+            return nestedLines.map(line => {
+                if (line.startsWith(baseIndent)) {
+                    return line.substring(baseIndent.length);
+                }
+                return line;
+            }).join('\n');
+        }
+
+        function applyBaseIndent(text, baseIndent) {
+            if (!text.trim()) return [];
+            
+            return text.split('\n').map(line => {
+                if (line.trim() === '') return '';
+                return baseIndent + line;
+            });
+        }
+
         function parseMarkdown(text) {
             const lines = text.split('\n');
             const sections = [];
@@ -1172,6 +1258,29 @@ chmod 755 kbtd
                 }
             }
             return null;
+        }
+
+        async function updateCardInFile(lineNumber, newTitle, newNestedContent, baseIndent) {
+            console.log('updateCardInFile:', lineNumber, newTitle, newNestedContent, baseIndent);
+            await modifyFileLines(lines => {
+                const cardInfo = findCardByLineNumber(lineNumber);
+                if (!cardInfo) {
+                    console.error('Could not find card with line number', lineNumber);
+                    return;
+                }
+                
+                const card = cardInfo.card;
+                const oldNestedLineCount = card.nestedLines.length;
+                
+                const checkbox = card.completed ? '[x]' : '[ ]';
+                const newCardLine = `- ${checkbox} ${newTitle}`;
+                
+                const newNestedLines = applyBaseIndent(newNestedContent, baseIndent);
+                
+                lines.splice(lineNumber, 1 + oldNestedLineCount, newCardLine, ...newNestedLines);
+                
+                console.log('Updated card at line', lineNumber);
+            });
         }
 
         async function moveLineInFile(fromLine, toLine, targetColumnIndex, insertPosition) {
@@ -1547,15 +1656,95 @@ chmod 755 kbtd
             };
         }
 
-        function openCardDetailModal(card) {
-            $('#card-detail-title').textContent = card.text;
-            const fullText = [card.originalLine, ...card.nestedLines].join('\n');
-            $('#card-detail-content').textContent = fullText;
+        async function openCardDetailModal(card) {
+            const file = await state.fileHandle.getFile();
+            const text = await file.text();
+            const defaultIndent = detectIndentInFile(text);
+            
+            const baseIndent = card.nestedLines.length > 0 
+                ? detectBaseIndent(card.nestedLines)
+                : defaultIndent;
+            
+            const strippedContent = stripBaseIndent(card.nestedLines, baseIndent);
+            
+            cardDetailModalState = {
+                card: card,
+                originalTitle: card.text,
+                originalContent: strippedContent,
+                baseIndent: baseIndent
+            };
+            
+            $('#card-detail-title-input').value = card.text;
+            $('#card-detail-content-textarea').value = strippedContent;
+            
+            updateCardDetailButtons();
+            
             $('#card-detail-modal').classList.add('active');
+        }
+
+        function updateCardDetailButtons() {
+            const titleInput = $('#card-detail-title-input');
+            const contentTextarea = $('#card-detail-content-textarea');
+            const buttonsContainer = $('#card-detail-buttons');
+            
+            const titleChanged = titleInput.value !== cardDetailModalState.originalTitle;
+            const contentChanged = contentTextarea.value !== cardDetailModalState.originalContent;
+            const isModified = titleChanged || contentChanged;
+            
+            if (isModified) {
+                buttonsContainer.replaceChildren(
+                    h('button', {
+                        id: 'card-detail-cancel-btn',
+                        textContent: 'Cancel',
+                        onclick: closeCardDetailModal
+                    }),
+                    h('button', {
+                        id: 'card-detail-save-btn',
+                        textContent: 'Save',
+                        onclick: saveCardDetail
+                    })
+                );
+            } else {
+                buttonsContainer.replaceChildren(
+                    h('button', {
+                        id: 'card-detail-close-btn',
+                        textContent: 'Close',
+                        onclick: closeCardDetailModal
+                    })
+                );
+            }
+        }
+
+        async function saveCardDetail() {
+            const titleInput = $('#card-detail-title-input');
+            const contentTextarea = $('#card-detail-content-textarea');
+            
+            const newTitle = titleInput.value.trim();
+            const newContent = contentTextarea.value;
+            
+            if (!newTitle) {
+                alert('Title cannot be empty');
+                return;
+            }
+            
+            await updateCardInFile(
+                cardDetailModalState.card.lineNumber,
+                newTitle,
+                newContent,
+                cardDetailModalState.baseIndent
+            );
+            
+            closeCardDetailModal();
         }
 
         function closeCardDetailModal() {
             $('#card-detail-modal').classList.remove('active');
+            cardDetailModalState = {
+                card: null,
+                originalTitle: '',
+                originalContent: '',
+                baseIndent: ''
+            };
         }
 
         function openAboutModal() {
@@ -1634,15 +1823,11 @@ chmod 755 kbtd
                         ondragend: handleDragEnd,
                         ondragenter: (e) => handleCardDragEnter(e, cardDiv, colIndex, cardIndex),
                         onclick: (e) => {
-                            if (hasNestedContent && !e.target.closest('.card-menu-btn')) {
+                            if (!e.target.closest('.card-menu-btn')) {
                                 openCardDetailModal(card);
                             }
                         }
                     });
-                    
-                    if (hasNestedContent) {
-                        cardDiv.style.cursor = 'pointer';
-                    }
                     
                     const expandIndicator = hasNestedContent ? 
                         h('span', { 
@@ -1966,6 +2151,9 @@ chmod 755 kbtd
             }
         });
 
+        $('#card-detail-title-input').addEventListener('input', updateCardDetailButtons);
+        $('#card-detail-content-textarea').addEventListener('input', updateCardDetailButtons);
+
         async function openRecentProject(projectName) {
             console.log('Opening recent project:', projectName);
             state.filePath = projectName;
@@ -2190,10 +2378,6 @@ chmod 755 kbtd
 
         $('#about-close-btn').onclick = () => {
             closeAboutModal();
-        };
-
-        $('#card-detail-close-btn').onclick = () => {
-            closeCardDetailModal();
         };
 
         $('#change-file-btn').onclick = () => {
