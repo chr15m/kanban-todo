@@ -266,7 +266,6 @@
         }
 
         .card.completed {
-            text-decoration: line-through;
             opacity: 0.6;
         }
 
@@ -277,6 +276,10 @@
 
         .card-text {
             flex-grow: 1;
+        }
+
+        .card.completed .card-text {
+            text-decoration: line-through;
         }
 
         .card-expand-indicator {
@@ -300,6 +303,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            text-decoration: none;
         }
 
         .card-menu-btn:hover {
