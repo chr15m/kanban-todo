@@ -270,7 +270,7 @@
             position: relative;
             flex-shrink: 0;
             display: flex;
-            align-items: flex-start;
+            flex-direction: column;
             gap: 0.5em;
         }
 
@@ -288,6 +288,12 @@
             cursor: grabbing;
         }
 
+        .card-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5em;
+        }
+
         .card-text {
             flex-grow: 1;
         }
@@ -296,11 +302,17 @@
             text-decoration: line-through;
         }
 
+        .card-footer {
+            display: flex;
+            align-items: center;
+            font-size: 0.85em;
+            color: var(--shade);
+        }
+
         .card-expand-indicator {
             color: var(--shade);
             font-size: 1.2em;
             line-height: 1;
-            margin-left: 0.25em;
         }
 
         .card-menu-btn {
@@ -1829,15 +1841,12 @@ chmod 755 kbtd
                         }
                     });
                     
-                    const expandIndicator = hasNestedContent ? 
-                        h('span', { 
-                            className: 'card-expand-indicator',
-                            textContent: '+' 
-                        }) : null;
+                    const cardHeader = h('div', { className: 'card-header' });
                     
                     const cardText = h('span', { 
-                        className: 'card-text'
-                    }, card.text, expandIndicator);
+                        className: 'card-text',
+                        textContent: card.text
+                    });
                     
                     const menuBtn = h('button', {
                         className: 'card-menu-btn',
@@ -1852,6 +1861,8 @@ chmod 755 kbtd
                             }
                         }
                     });
+                    
+                    cardHeader.append(cardText, menuBtn);
                     
                     const checkbox = h('div', {
                         className: `card-menu-checkbox ${card.completed ? 'checked' : ''}`
@@ -1890,7 +1901,17 @@ chmod 755 kbtd
                         className: 'card-menu'
                     }, completeItem, moveItem);
                     
-                    cardDiv.append(cardText, menuBtn, menu);
+                    cardDiv.append(cardHeader, menu);
+                    
+                    if (hasNestedContent) {
+                        const cardFooter = h('div', { className: 'card-footer' });
+                        const expandIndicator = h('span', { 
+                            className: 'card-expand-indicator',
+                            textContent: '+'
+                        });
+                        cardFooter.append(expandIndicator);
+                        cardDiv.append(cardFooter);
+                    }
                     
                     cardElements.push(
                         cardDiv,
