@@ -279,6 +279,13 @@
             flex-grow: 1;
         }
 
+        .card-expand-indicator {
+            color: var(--shade);
+            font-size: 1.2em;
+            line-height: 1;
+            margin-left: 0.25em;
+        }
+
         .card-menu-btn {
             width: 1.5em;
             height: 1.5em;
@@ -628,6 +635,7 @@
             max-height: 90%;
             overflow-y: auto;
             min-width: 400px;
+            width: 1024px;
         }
 
         .modal-content h3 {
@@ -717,6 +725,13 @@
 
         ul {
             list-style: square;
+        }
+
+        .card-detail-content {
+            white-space: pre-wrap;
+            font-family: monospace;
+            text-align: left;
+            line-height: 1.6;
         }
     </style>
 </head>
@@ -817,6 +832,16 @@ chmod 755 kbtd
                 <div class="modal-buttons">
                     <button id="move-cancel-btn">Cancel</button>
                     <button id="move-confirm-btn">Move</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="card-detail-modal" class="modal">
+            <div class="modal-content">
+                <h3 id="card-detail-title">Card Details</h3>
+                <div class="card-detail-content" id="card-detail-content"></div>
+                <div class="modal-buttons">
+                    <button id="card-detail-close-btn">Close</button>
                 </div>
             </div>
         </div>
@@ -1075,7 +1100,10 @@ chmod 755 kbtd
                 }
                 else {
                     if (currentCard) {
-                        currentCard.nestedLines.push(line);
+                        const isIndented = line.startsWith(' ') || line.startsWith('\t');
+                        if (isIndented) {
+                            currentCard.nestedLines.push(line);
+                        }
                     }
                 }
             }
@@ -1515,6 +1543,17 @@ chmod 755 kbtd
             };
         }
 
+        function openCardDetailModal(card) {
+            $('#card-detail-title').textContent = card.text;
+            const fullText = [card.originalLine, ...card.nestedLines].join('\n');
+            $('#card-detail-content').textContent = fullText;
+            $('#card-detail-modal').classList.add('active');
+        }
+
+        function closeCardDetailModal() {
+            $('#card-detail-modal').classList.remove('active');
+        }
+
         function openAboutModal() {
             $('#about-modal').classList.add('active');
         }
@@ -1576,6 +1615,8 @@ chmod 755 kbtd
                 column.cards.forEach((card, cardIndex) => {
                     if (!state.showCompleted && card.completed) return;
                     
+                    const hasNestedContent = card.nestedLines.length > 0;
+                    
                     const cardDiv = h('div', {
                         className: `card ${card.completed ? 'completed' : ''}`,
                         draggable: true,
@@ -1587,13 +1628,27 @@ chmod 755 kbtd
                         },
                         ondragstart: (e) => handleDragStart(e, cardDiv),
                         ondragend: handleDragEnd,
-                        ondragenter: (e) => handleCardDragEnter(e, cardDiv, colIndex, cardIndex)
+                        ondragenter: (e) => handleCardDragEnter(e, cardDiv, colIndex, cardIndex),
+                        onclick: (e) => {
+                            if (hasNestedContent && !e.target.closest('.card-menu-btn')) {
+                                openCardDetailModal(card);
+                            }
+                        }
                     });
                     
+                    if (hasNestedContent) {
+                        cardDiv.style.cursor = 'pointer';
+                    }
+                    
+                    const expandIndicator = hasNestedContent ? 
+                        h('span', { 
+                            className: 'card-expand-indicator',
+                            textContent: '+' 
+                        }) : null;
+                    
                     const cardText = h('span', { 
-                        className: 'card-text',
-                        textContent: card.text 
-                    });
+                        className: 'card-text'
+                    }, card.text, expandIndicator);
                     
                     const menuBtn = h('button', {
                         className: 'card-menu-btn',
@@ -1902,6 +1957,9 @@ chmod 755 kbtd
             if (e.target.id === 'about-modal') {
                 closeAboutModal();
             }
+            if (e.target.id === 'card-detail-modal') {
+                closeCardDetailModal();
+            }
         });
 
         async function openRecentProject(projectName) {
@@ -2128,6 +2186,10 @@ chmod 755 kbtd
 
         $('#about-close-btn').onclick = () => {
             closeAboutModal();
+        };
+
+        $('#card-detail-close-btn').onclick = () => {
+            closeCardDetailModal();
         };
 
         $('#change-file-btn').onclick = () => {
