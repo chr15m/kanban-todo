@@ -726,7 +726,7 @@
         <pre>curl -O <a href="https://mccormick.cx/apps/kanban-todo/kbtd">https://mccormick.cx/apps/kanban-todo/kbtd</a>
 chmod 755 kbtd
 
-# If self-hosting, set KBTD_URL to your URL:
+# If self-hosting, set KBTD_URL to point at your URL:
 # export KBTD_URL="<span class="current-url">https://mccormick.cx/apps/kanban-todo/kbtd</span>"
 
 # Then launch with:
@@ -1032,6 +1032,7 @@ chmod 755 kbtd
 
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
+                const trimmed = line.trim();
                 
                 if (line.startsWith('# ')) {
                     finishCard();
@@ -1052,19 +1053,25 @@ chmod 755 kbtd
                     };
                     currentSection.columns.push(currentColumn);
                 }
-                else if ((line.trim().startsWith('- [ ]') || line.trim().startsWith('- [x]')) && currentColumn) {
-                    finishCard();
-                    const isCompleted = line.trim().startsWith('- [x]');
-                    const textStart = line.indexOf(']') + 2;
-                    const text = line.substring(textStart).trim();
+                else if ((trimmed.startsWith('- [ ]') || trimmed.startsWith('- [x]')) && currentColumn) {
+                    const isIndented = line.startsWith(' ') || line.startsWith('\t');
                     
-                    currentCard = {
-                        text: text,
-                        completed: isCompleted,
-                        lineNumber: i,
-                        originalLine: line,
-                        nestedLines: []
-                    };
+                    if (isIndented && currentCard) {
+                        currentCard.nestedLines.push(line);
+                    } else {
+                        finishCard();
+                        const isCompleted = trimmed.startsWith('- [x]');
+                        const textStart = line.indexOf(']') + 2;
+                        const text = line.substring(textStart).trim();
+                        
+                        currentCard = {
+                            text: text,
+                            completed: isCompleted,
+                            lineNumber: i,
+                            originalLine: line,
+                            nestedLines: []
+                        };
+                    }
                 }
                 else {
                     if (currentCard) {
@@ -1121,6 +1128,20 @@ chmod 755 kbtd
             });
         }
 
+        function findCardByLineNumber(lineNumber) {
+            const section = state.sections[state.currentSectionIndex];
+            for (let colIndex = 0; colIndex < section.columns.length; colIndex++) {
+                const column = section.columns[colIndex];
+                for (let cardIndex = 0; cardIndex < column.cards.length; cardIndex++) {
+                    const card = column.cards[cardIndex];
+                    if (card.lineNumber === lineNumber) {
+                        return { card, colIndex, cardIndex };
+                    }
+                }
+            }
+            return null;
+        }
+
         async function moveLineInFile(fromLine, toLine, targetColumnIndex, insertPosition) {
             console.log('moveLineInFile: from line', fromLine, 'to line', toLine, 'targetColumnIndex:', targetColumnIndex, 'insertPosition:', insertPosition);
             await modifyFileLines(lines => {
@@ -1129,11 +1150,19 @@ chmod 755 kbtd
                 const targetColumnIsEmpty = targetColumn.cards.length === 0;
                 const isInsertingAtBottom = insertPosition === targetColumn.cards.length;
                 
+                const cardInfo = findCardByLineNumber(fromLine);
+                if (!cardInfo) {
+                    console.error('Could not find card with line number', fromLine);
+                    return;
+                }
+                
+                const nestedLineCount = cardInfo.card.nestedLines.length;
+                console.log('Card has', nestedLineCount, 'nested lines');
                 console.log('Before move, source line', fromLine, '=', lines[fromLine]);
                 console.log('Target column is empty:', targetColumnIsEmpty);
                 console.log('Inserting at bottom:', isInsertingAtBottom);
                 
-                const [movedLine] = lines.splice(fromLine, 1);
+                const movedLines = lines.splice(fromLine, 1 + nestedLineCount);
                 
                 let actualInsertLine;
                 
@@ -1142,12 +1171,12 @@ chmod 755 kbtd
                     actualInsertLine = targetColumn.headerLineNumber + 1;
                     
                     if (actualInsertLine < lines.length && lines[actualInsertLine].trim() === '') {
-                        lines.splice(actualInsertLine, 0, movedLine);
+                        lines.splice(actualInsertLine, 0, ...movedLines);
                     } else {
-                        lines.splice(actualInsertLine, 0, '', movedLine);
+                        lines.splice(actualInsertLine, 0, '', ...movedLines);
                     }
                     
-                    const afterLine = actualInsertLine + (lines[actualInsertLine].trim() === '' ? 2 : 1);
+                    const afterLine = actualInsertLine + (lines[actualInsertLine].trim() === '' ? 1 + movedLines.length : movedLines.length);
                     if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
                         lines.splice(afterLine, 0, '');
                     }
@@ -1160,7 +1189,7 @@ chmod 755 kbtd
                             actualInsertLine++;
                         }
                         
-                        lines.splice(actualInsertLine, 0, movedLine);
+                        lines.splice(actualInsertLine, 0, ...movedLines);
                     } else {
                         console.log('Inserting at position', insertPosition);
                         const cardBefore = targetColumn.cards[insertPosition - 1];
@@ -1170,20 +1199,20 @@ chmod 755 kbtd
                         }
                         
                         if (fromLine < actualInsertLine) {
-                            actualInsertLine--;
+                            actualInsertLine -= (1 + nestedLineCount);
                         }
                         
                         if (actualInsertLine > 0 && lines[actualInsertLine - 1].trim() === '') {
                             console.log('Line before target is blank, replacing it');
-                            lines[actualInsertLine - 1] = movedLine;
+                            lines.splice(actualInsertLine - 1, 1, ...movedLines);
                         } else {
                             console.log('Inserting at target position');
-                            lines.splice(actualInsertLine, 0, movedLine);
+                            lines.splice(actualInsertLine, 0, ...movedLines);
                         }
                         
                         if (isInsertingAtBottom) {
-                            const movedLineIndex = lines[actualInsertLine - 1] === movedLine ? actualInsertLine - 1 : actualInsertLine;
-                            const afterLine = movedLineIndex + 1;
+                            const movedLineIndex = lines[actualInsertLine - 1] === movedLines[0] ? actualInsertLine - 1 : actualInsertLine;
+                            const afterLine = movedLineIndex + movedLines.length;
                             if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
                                 console.log('Inserting at bottom - ensuring blank line after moved item at line', afterLine);
                                 lines.splice(afterLine, 0, '');
@@ -1193,7 +1222,7 @@ chmod 755 kbtd
                 }
                 
                 console.log('After move, lines around target:');
-                for (let i = Math.max(0, actualInsertLine - 2); i <= Math.min(lines.length - 1, actualInsertLine + 2); i++) {
+                for (let i = Math.max(0, actualInsertLine - 2); i <= Math.min(lines.length - 1, actualInsertLine + movedLines.length + 2); i++) {
                     console.log(`  line ${i}: "${lines[i]}"`);
                 }
             });
@@ -1202,7 +1231,16 @@ chmod 755 kbtd
         async function moveLineBetweenSections(fromLine, targetSectionIndex, targetColumnIndex) {
             console.log('moveLineBetweenSections: from line', fromLine, 'to section', targetSectionIndex, 'column', targetColumnIndex);
             await modifyFileLines(lines => {
-                const [movedLine] = lines.splice(fromLine, 1);
+                const cardInfo = findCardByLineNumber(fromLine);
+                if (!cardInfo) {
+                    console.error('Could not find card with line number', fromLine);
+                    return;
+                }
+                
+                const nestedLineCount = cardInfo.card.nestedLines.length;
+                console.log('Card has', nestedLineCount, 'nested lines');
+                
+                const movedLines = lines.splice(fromLine, 1 + nestedLineCount);
                 
                 const targetSection = state.sections[targetSectionIndex];
                 const targetColumn = targetSection.columns[targetColumnIndex];
@@ -1212,16 +1250,16 @@ chmod 755 kbtd
                     insertLine = targetColumn.headerLineNumber + 1;
                     
                     if (fromLine < insertLine) {
-                        insertLine--;
+                        insertLine -= (1 + nestedLineCount);
                     }
                     
                     if (insertLine < lines.length && lines[insertLine].trim() === '') {
-                        lines.splice(insertLine, 0, movedLine);
+                        lines.splice(insertLine, 0, ...movedLines);
                     } else {
-                        lines.splice(insertLine, 0, '', movedLine);
+                        lines.splice(insertLine, 0, '', ...movedLines);
                     }
                     
-                    const afterLine = insertLine + (lines[insertLine].trim() === '' ? 2 : 1);
+                    const afterLine = insertLine + (lines[insertLine].trim() === '' ? 1 + movedLines.length : movedLines.length);
                     if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
                         lines.splice(afterLine, 0, '');
                     }
@@ -1233,18 +1271,18 @@ chmod 755 kbtd
                     }
                     
                     if (fromLine < insertLine) {
-                        insertLine--;
+                        insertLine -= (1 + nestedLineCount);
                     }
                     
-                    lines.splice(insertLine, 0, movedLine);
+                    lines.splice(insertLine, 0, ...movedLines);
                     
-                    const afterLine = insertLine + 1;
+                    const afterLine = insertLine + movedLines.length;
                     if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
                         lines.splice(afterLine, 0, '');
                     }
                 }
                 
-                console.log('Moved line to position', insertLine);
+                console.log('Moved lines to position', insertLine);
             });
         }
 
