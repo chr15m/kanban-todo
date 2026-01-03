@@ -1,8 +1,8 @@
-A Kanban board for your Markdown TODO file.
+A Kanban board for your Markdown TODO file in a single [index.html](./index.html) file.
 
-- Drag-and-drop visual editing of plain text Markdown
+- Drag-and-drop visual editing of plain text Markdown TODOs
 - Runs 100% in your browser - no server, no database
-- Single HTML file - upload to self-host
+- Single HTML file - simply upload to self-host
 - CLI tool to launch as a Chrome app: `kbtd TODO.md`
 - Two-way binding between UI and text file
 
