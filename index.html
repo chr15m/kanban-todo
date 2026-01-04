@@ -988,7 +988,7 @@ chmod 755 kbtd
             $(`#${containerId}`).appendChild(clone);
         }
 
-        function createAddForm(placeholder, onSubmit) {
+        function createAddForm(placeholder, onSubmit, onCancel) {
             const input = h('input', { type: 'text', placeholder });
             const form = h('div', { className: 'add-card-form' }, input);
             
@@ -1012,7 +1012,10 @@ chmod 755 kbtd
                 h('button', { textContent: 'Add', onclick: handleSubmit }),
                 h('button', { 
                     textContent: 'Cancel', 
-                    onclick: () => form.hide()
+                    onclick: () => {
+                        form.hide();
+                        if (onCancel) onCancel();
+                    }
                 })
             );
             
@@ -2001,12 +2004,6 @@ chmod 755 kbtd
                     ondragleave: handleDragLeave
                 }, ...cardElements);
                 
-                const addCardForm = createAddForm('Card text...', async (text) => {
-                    await createCard(colIndex, text);
-                    addCardForm.hide();
-                    addCardBtn.style.display = '';
-                });
-                
                 const addCardBtn = h('button', {
                     className: 'add-card-btn',
                     textContent: '+',
@@ -2015,6 +2012,14 @@ chmod 755 kbtd
                         addCardBtn.style.display = 'none';
                         addCardForm.show();
                     }
+                });
+                
+                const addCardForm = createAddForm('Card text...', async (text) => {
+                    await createCard(colIndex, text);
+                    addCardForm.hide();
+                    addCardBtn.style.display = '';
+                }, () => {
+                    addCardBtn.style.display = '';
                 });
                 
                 return h('div', {
