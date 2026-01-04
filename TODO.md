@@ -14,10 +14,9 @@
 
 ## Bugs
 
-- [ ] When the dots menu shows on a 'completed' item the stuff behind it shows through
-
 ## Done
 
+- [x] When the dots menu shows on a 'completed' item the stuff behind it shows through
 - [x] Pressing + in a column and then cancel removes the button entirely
 - [x] Group all indented lines after each item with the item
 - [x] Link to source for self-hosting
@@ -34,4 +33,3 @@
 - [x] Give each column a max width of 450px and have them stretch to fill the area up to that.
 - [x] Don't put carriage returns between individual TODO list items. As far as possible try to preserve original formatting, just moving individual lines around without disturbing other lines.
 - [x] Ability to create a project on the projects select page, including if TODO.md is empty.
-

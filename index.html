@@ -278,7 +278,7 @@
             border-color: var(--fg);
         }
 
-        .card.completed {
+        .card.completed .card-header {
             opacity: 0.6;
         }
 
@@ -370,6 +370,7 @@
             min-width: 150px;
             z-index: 100;
             display: none;
+            opacity: 1;
         }
 
         .card-menu.active {
@@ -1923,7 +1924,7 @@ chmod 755 kbtd
                                 : originalLine.replace('- [ ]', '- [x]');
                             await updateLineInFile(lineNum, newLine);
                         }
-                    }, checkbox, h('span', { textContent: 'Complete' }));
+                    }, checkbox, h('span', { textContent: 'Completed' }));
                     
                     const moveItem = h('button', {
                         className: 'card-menu-item',
