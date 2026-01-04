@@ -3,12 +3,23 @@
 ## Backlog
 
 - [ ] Automation (move to 'done' when checked)
-- [ ] Minimize the number of times the user is asked for access. If possible ask for all the access required at one time.
+- [ ] Minimize the number of times the user is asked for access.
+      If possible ask for all the access required just once.
 
 ## TODO
 
+- [ ] Warning colored note on home and about page if browser doesn't support FileSystem Access API.
+- [ ] Ability to delete an item, with confirmation.
+- [ ] Display sub-lines of the form `key: value` immediately after item
+
+## Bugs
+
+- [ ] When the dots menu shows on a 'completed' item the stuff behind it shows through
+
 ## Done
 
+- [x] Pressing + in a column and then cancel removes the button entirely
+- [x] Group all indented lines after each item with the item
 - [x] Link to source for self-hosting
 - [x] About page in top right menu
 - [x] Allow scroll if the informational screen is cut off.
