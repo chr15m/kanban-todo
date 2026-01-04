@@ -1338,6 +1338,24 @@ chmod 755 kbtd
             });
         }
 
+        async function deleteCard(lineNumber) {
+            console.log('deleteCard:', lineNumber);
+            await modifyFileLines(lines => {
+                const cardInfo = findCardByLineNumber(lineNumber);
+                if (!cardInfo) {
+                    console.error('Could not find card with line number', lineNumber);
+                    return;
+                }
+                
+                const card = cardInfo.card;
+                const nestedLineCount = card.nestedLines.length;
+                
+                lines.splice(lineNumber, 1 + nestedLineCount);
+                
+                console.log('Deleted card at line', lineNumber, 'with', nestedLineCount, 'nested lines');
+            });
+        }
+
         async function moveLineInFile(fromLine, toLine, targetColumnIndex, insertPosition) {
             console.log('moveLineInFile: from line', fromLine, 'to line', toLine, 'targetColumnIndex:', targetColumnIndex, 'insertPosition:', insertPosition);
             await modifyFileLines(lines => {
@@ -1941,9 +1959,22 @@ chmod 755 kbtd
                         }
                     });
                     
+                    const deleteItem = h('button', {
+                        className: 'card-menu-item',
+                        textContent: 'Delete',
+                        onclick: async (e) => {
+                            e.stopPropagation();
+                            closeAllCardMenus();
+                            if (confirm('Are you sure you want to delete this card?')) {
+                                const lineNum = getDataInt(cardDiv, 'lineNumber');
+                                await deleteCard(lineNum);
+                            }
+                        }
+                    });
+                    
                     const menu = h('div', {
                         className: 'card-menu'
-                    }, completeItem, moveItem);
+                    }, completeItem, moveItem, deleteItem);
                     
                     cardDiv.append(cardHeader, menu);
                     
