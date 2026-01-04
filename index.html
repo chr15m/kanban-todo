@@ -305,15 +305,36 @@
         .card-footer {
             display: flex;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: end;
             font-size: 0.85em;
             color: var(--shade);
+        }
+
+        .card-footer-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25em;
         }
 
         .card-expand-indicator {
             color: var(--shade);
             font-size: 1.2em;
             line-height: 1;
+        }
+
+        .card-progress-bar {
+            height: 6px;
+            width: 6ch;
+            background: #445;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .card-progress-fill {
+            height: 100%;
+            background: #4a4;
+            transition: width 0.2s ease;
         }
 
         .card-menu-btn {
@@ -1924,21 +1945,33 @@ chmod 755 kbtd
                     
                     if (hasNestedContent) {
                         const cardFooter = h('div', { className: 'card-footer' });
-                        let expandIndicator;
+                        const cardFooterContent = h('div', { className: 'card-footer-content' });
                         
                         if (subtasks.total > 0) {
-                            expandIndicator = h('span', { 
+                            const percentage = subtasks.total > 0 ? (subtasks.completed / subtasks.total) * 100 : 0;
+                            
+                            const expandIndicator = h('span', { 
                                 className: 'card-expand-indicator',
-                                textContent: `${subtasks.completed}/${subtasks.total}`
+                                textContent: `${subtasks.completed} / ${subtasks.total}`
                             });
+                            
+                            const progressBar = h('div', { className: 'card-progress-bar' },
+                                h('div', { 
+                                    className: 'card-progress-fill',
+                                    style: { width: `${percentage}%` }
+                                })
+                            );
+                            
+                            cardFooterContent.append(expandIndicator, progressBar);
                         } else {
-                            expandIndicator = h('span', { 
+                            const expandIndicator = h('span', { 
                                 className: 'card-expand-indicator',
                                 textContent: '+'
                             });
+                            cardFooterContent.append(expandIndicator);
                         }
                         
-                        cardFooter.append(expandIndicator);
+                        cardFooter.append(cardFooterContent);
                         cardDiv.append(cardFooter);
                     }
                     
