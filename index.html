@@ -305,6 +305,7 @@
         .card-footer {
             display: flex;
             align-items: center;
+            justify-content: flex-end;
             font-size: 0.85em;
             color: var(--shade);
         }
@@ -1141,6 +1142,23 @@ chmod 755 kbtd
             });
         }
 
+        function countSubtasks(nestedLines) {
+            let total = 0;
+            let completed = 0;
+            
+            for (const line of nestedLines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('- [ ]')) {
+                    total++;
+                } else if (trimmed.startsWith('- [x]')) {
+                    total++;
+                    completed++;
+                }
+            }
+            
+            return { total, completed };
+        }
+
         function parseMarkdown(text) {
             const lines = text.split('\n');
             const sections = [];
@@ -1821,6 +1839,7 @@ chmod 755 kbtd
                     if (!state.showCompleted && card.completed) return;
                     
                     const hasNestedContent = card.nestedLines.length > 0;
+                    const subtasks = countSubtasks(card.nestedLines);
                     
                     const cardDiv = h('div', {
                         className: `card ${card.completed ? 'completed' : ''}`,
@@ -1905,10 +1924,20 @@ chmod 755 kbtd
                     
                     if (hasNestedContent) {
                         const cardFooter = h('div', { className: 'card-footer' });
-                        const expandIndicator = h('span', { 
-                            className: 'card-expand-indicator',
-                            textContent: '+'
-                        });
+                        let expandIndicator;
+                        
+                        if (subtasks.total > 0) {
+                            expandIndicator = h('span', { 
+                                className: 'card-expand-indicator',
+                                textContent: `${subtasks.completed}/${subtasks.total}`
+                            });
+                        } else {
+                            expandIndicator = h('span', { 
+                                className: 'card-expand-indicator',
+                                textContent: '+'
+                            });
+                        }
+                        
                         cardFooter.append(expandIndicator);
                         cardDiv.append(cardFooter);
                     }
