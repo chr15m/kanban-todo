@@ -9,7 +9,6 @@
 ## TODO
 
 - [ ] Display sub-lines of the form `key: value` immediately after item
-- [ ] Make it a proper PWA with the minimal-pwa technique
 
 ## Bugs
 
@@ -21,6 +20,7 @@
 
 ## Done
 
+- [x] Make it a proper PWA with the minimal-pwa technique
 - [x] Extract and consolidate indent detection functions
 - [x] Reduce IndexedDB boilerplate with generic DB operation wrapper
 - [x] Simplify drop indicator logic

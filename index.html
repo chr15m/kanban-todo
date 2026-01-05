@@ -3,6 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A Kanban board for your Markdown TODO file">
+    <meta name="theme-color" content="#112">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="#" id="manifest-placeholder">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='4' fill='%23112'/%3E%3Cpath stroke='none' d='M0 0h24v24H0z' fill='none'/%3E%3Cpath d='M4 4l6 0' stroke='%23ffe' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M14 4l6 0' stroke='%23ffe' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M4 10a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -8' stroke='%23ffe' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M14 10a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2' stroke='%23ffe' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" sizes="any" type="image/svg+xml">
     <title>Kanban TODO</title>
     <style>
         :root {
@@ -2516,6 +2523,57 @@ chmod 755 kbtd
             await confirmMove();
         };
 
+        // PWA setup
+        function setupPWA() {
+            const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 24 24"><rect width="24" height="24" rx="4" fill="#112"/><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 4l6 0" stroke="#ffe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M14 4l6 0" stroke="#ffe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M4 10a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -8" stroke="#ffe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M14 10a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2" stroke="#ffe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+            
+            const manifest = {
+                name: 'Kanban TODO',
+                short_name: 'Kanban TODO',
+                display: 'standalone',
+                theme_color: '#112',
+                background_color: '#112',
+                start_url: window.location.pathname,
+                icons: [{
+                    src: 'data:image/svg+xml,' + encodeURIComponent(iconSvg),
+                    sizes: 'any',
+                    type: 'image/svg+xml'
+                }]
+            };
+            
+            const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            $('#manifest-placeholder').href = manifestURL;
+            
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', (e) => {
+                        console.log('Service Worker installed');
+                        self.skipWaiting();
+                    });
+                    
+                    self.addEventListener('activate', (e) => {
+                        console.log('Service Worker activated');
+                        return self.clients.claim();
+                    });
+                    
+                    self.addEventListener('fetch', (e) => {
+                        e.respondWith(fetch(e.request));
+                    });
+                `;
+                
+                const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                const swURL = URL.createObjectURL(swBlob);
+                
+                navigator.serviceWorker.register(swURL).then(() => {
+                    console.log('Service Worker registered');
+                }).catch((err) => {
+                    console.error('Service Worker registration failed:', err);
+                });
+            }
+        }
+
+        setupPWA();
         init();
 
     </script>
