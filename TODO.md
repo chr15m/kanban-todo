@@ -15,7 +15,6 @@
 
 ## Refactor
 
-- [ ] Simplify drop indicator logic
 - [ ] Consolidate menu creation (card menus and burger menu)
 - [ ] Extract line parsing logic - separate parsing from state management
 - [ ] Reduce IndexedDB boilerplate with generic DB operation wrapper
@@ -24,6 +23,7 @@
 
 ## Done
 
+- [x] Simplify drop indicator logic
 - [x] Extract file operations into higher-level abstraction
 - [x] Consolidate modal logic into generic modal handler
 - [x] Warning colored note on home and about page if browser doesn't support FileSystem Access API.

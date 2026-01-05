@@ -956,8 +956,7 @@ chmod 755 kbtd
         };
 
         let dragState = {
-            source: null,
-            currentDropTarget: null
+            source: null
         };
 
         let moveModalState = {
@@ -2130,16 +2129,20 @@ chmod 755 kbtd
             renderBoard();
         }
 
-        function clearDropIndicators() {
-            $$('.drop-indicator').forEach(el => el.classList.remove('active'));
-        }
-
         function setActiveDropIndicator(colIndex, position) {
             console.log('Setting active drop indicator: col', colIndex, 'position', position);
-            dragState.currentDropTarget = { colIndex, position };
-            clearDropIndicators();
+            $$('.drop-indicator').forEach(el => el.classList.remove('active'));
             const indicator = $(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
             if (indicator) indicator.classList.add('active');
+        }
+
+        function getActiveDropIndicator() {
+            const active = $('.drop-indicator.active');
+            if (!active) return null;
+            return {
+                colIndex: getDataInt(active, 'colIndex'),
+                position: getDataInt(active, 'position')
+            };
         }
 
         function handleDragStart(e, cardDiv) {
@@ -2157,9 +2160,8 @@ chmod 755 kbtd
 
         function handleDragEnd(e) {
             e.target.classList.remove('dragging');
-            clearDropIndicators();
+            $$('.drop-indicator').forEach(el => el.classList.remove('active'));
             dragState.source = null;
-            dragState.currentDropTarget = null;
         }
 
         function handleCardDragEnter(e, cardDiv, colIndex, cardIndex) {
@@ -2208,12 +2210,7 @@ chmod 755 kbtd
             if (closestCard) {
                 const cardIndex = getDataInt(closestCard, 'cardIndex');
                 const position = insertBefore ? cardIndex : cardIndex + 1;
-                
-                if (!dragState.currentDropTarget || 
-                    dragState.currentDropTarget.colIndex !== colIndex || 
-                    dragState.currentDropTarget.position !== position) {
-                    setActiveDropIndicator(colIndex, position);
-                }
+                setActiveDropIndicator(colIndex, position);
             }
         }
 
@@ -2230,16 +2227,17 @@ chmod 755 kbtd
             e.stopPropagation();
             e.preventDefault();
             
-            clearDropIndicators();
+            const dropTarget = getActiveDropIndicator();
+            $$('.drop-indicator').forEach(el => el.classList.remove('active'));
             
-            if (!dragState.source || !dragState.currentDropTarget) {
+            if (!dragState.source || !dropTarget) {
                 console.log('Drop ignored: no source or target');
                 return;
             }
             
             const sourceColIndex = dragState.source.colIndex;
             const sourceLineNumber = dragState.source.lineNumber;
-            const targetPosition = dragState.currentDropTarget.position;
+            const targetPosition = dropTarget.position;
             
             console.log('Drop: sourceCol', sourceColIndex, 'targetCol', targetColIndex, 'position', targetPosition);
             
@@ -2248,7 +2246,6 @@ chmod 755 kbtd
                 if (targetPosition === sourceCardIndex || targetPosition === sourceCardIndex + 1) {
                     console.log('Same position, ignoring drop');
                     dragState.source = null;
-                    dragState.currentDropTarget = null;
                     return;
                 }
             }
@@ -2261,7 +2258,6 @@ chmod 755 kbtd
             await moveLineInFile(sourceLineNumber, 0, targetColIndex, targetPosition);
             
             dragState.source = null;
-            dragState.currentDropTarget = null;
             return false;
         }
 
