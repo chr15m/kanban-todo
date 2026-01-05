@@ -15,7 +15,6 @@
 
 ## Refactor
 
-- [ ] Extract file operations into higher-level abstraction
 - [ ] Simplify drop indicator logic
 - [ ] Consolidate menu creation (card menus and burger menu)
 - [ ] Extract line parsing logic - separate parsing from state management
@@ -25,6 +24,7 @@
 
 ## Done
 
+- [x] Extract file operations into higher-level abstraction
 - [x] Consolidate modal logic into generic modal handler
 - [x] Warning colored note on home and about page if browser doesn't support FileSystem Access API.
 - [x] Ability to delete an item, with confirmation.

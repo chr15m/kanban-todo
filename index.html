@@ -1346,15 +1346,20 @@ chmod 755 kbtd
             return null;
         }
 
-        async function updateCardInFile(lineNumber, newTitle, newNestedContent, baseIndent) {
-            console.log('updateCardInFile:', lineNumber, newTitle, newNestedContent, baseIndent);
+        async function modifyCard(lineNumber, fn) {
             await modifyFileLines(lines => {
                 const cardInfo = findCardByLineNumber(lineNumber);
                 if (!cardInfo) {
                     console.error('Could not find card with line number', lineNumber);
                     return;
                 }
-                
+                fn(lines, cardInfo);
+            });
+        }
+
+        async function updateCardInFile(lineNumber, newTitle, newNestedContent, baseIndent) {
+            console.log('updateCardInFile:', lineNumber, newTitle, newNestedContent, baseIndent);
+            await modifyCard(lineNumber, (lines, cardInfo) => {
                 const card = cardInfo.card;
                 const oldNestedLineCount = card.nestedLines.length;
                 
@@ -1371,13 +1376,7 @@ chmod 755 kbtd
 
         async function deleteCard(lineNumber) {
             console.log('deleteCard:', lineNumber);
-            await modifyFileLines(lines => {
-                const cardInfo = findCardByLineNumber(lineNumber);
-                if (!cardInfo) {
-                    console.error('Could not find card with line number', lineNumber);
-                    return;
-                }
-                
+            await modifyCard(lineNumber, (lines, cardInfo) => {
                 const card = cardInfo.card;
                 const nestedLineCount = card.nestedLines.length;
                 
