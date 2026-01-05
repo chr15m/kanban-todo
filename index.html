@@ -660,6 +660,13 @@
             border-radius: var(--radius);
         }
 
+        .warning {
+            background-color: #885500;
+            color: #ffa500;
+            padding: 0.5em 1em;
+            border-radius: var(--radius);
+        }
+
         .modal {
             position: fixed;
             z-index: 1000;
@@ -812,6 +819,9 @@ chmod 755 kbtd
                 <li>CLI tool to launch as a Chrome app: <code>kbtd TODO.md</code></li>
                 <li>Two-way binding between UI and text file</li>
             </ul>
+            <div id="api-warning" class="warning" style="display:none; max-width: 600px;">
+                ⚠ Your browser does not support the FileSystem Access API. Chromium-based browsers (Chrome, Edge, etc.) are known to work.
+            </div>
             <div class="project-name-form">
                 <label for="project-name-input">Project name:</label>
                 <div class="form-row">
@@ -915,6 +925,9 @@ chmod 755 kbtd
                     <li>Single HTML file - upload to self-host</li>
                     <li>CLI tool to launch as a Chrome app: <code>kbtd TODO.md</code></li>
                 </ul>
+                <div id="about-api-warning" class="warning" style="display:none;">
+                    ⚠ Your browser does not support the FileSystem Access API. This app requires a Chromium-based browser (Chrome, Edge, etc.) to work.
+                </div>
                 <div id="about-instructions"></div>
                 <p><a href="https://github.com/chr15m/kanban-todo" target="_blank">Source code for self-hosting</a></p>
                 <p>Copyright &copy; Chris McCormick 2025</p>
@@ -960,6 +973,10 @@ chmod 755 kbtd
             originalContent: '',
             baseIndent: ''
         };
+
+        function checkFileSystemAccessAPI() {
+            return 'showOpenFilePicker' in window;
+        }
 
         function h(tag, props = {}, ...children) {
             const el = document.createElement(tag);
@@ -2367,6 +2384,12 @@ chmod 755 kbtd
         async function init() {
             insertInstallInstructions('landing-instructions');
             insertInstallInstructions('about-instructions');
+            
+            if (!checkFileSystemAccessAPI()) {
+                $('#api-warning').style.display = 'block';
+                $('#about-api-warning').style.display = 'block';
+                $('#open-file-btn').disabled = true;
+            }
             
             const params = new URLSearchParams(window.location.search);
             state.filePath = params.get('file');

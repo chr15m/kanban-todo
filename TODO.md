@@ -8,13 +8,13 @@
 
 ## TODO
 
-- [ ] Warning colored note on home and about page if browser doesn't support FileSystem Access API.
 - [ ] Display sub-lines of the form `key: value` immediately after item
 
 ## Bugs
 
 ## Done
 
+- [x] Warning colored note on home and about page if browser doesn't support FileSystem Access API.
 - [x] Ability to delete an item, with confirmation.
 - [x] When the dots menu shows on a 'completed' item the stuff behind it shows through
 - [x] Pressing + in a column and then cancel removes the button entirely
