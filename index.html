@@ -1052,6 +1052,20 @@ chmod 755 kbtd
             return form;
         }
 
+        function createModal(id, onOpen, onClose) {
+            const el = $(`#${id}`);
+            return {
+                open: (data) => {
+                    if (onOpen) onOpen(data);
+                    el.classList.add('active');
+                },
+                close: () => {
+                    if (onClose) onClose();
+                    el.classList.remove('active');
+                }
+            };
+        }
+
         const dbPromise = new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
             request.onerror = () => reject(request.error);
@@ -1696,13 +1710,8 @@ chmod 755 kbtd
             }
         }
 
-        function openMoveModal(cardLineNumber, cardOriginalLine, sourceColIndex, sourceCardIndex) {
-            moveModalState = {
-                cardLineNumber,
-                cardOriginalLine,
-                sourceColIndex,
-                sourceCardIndex
-            };
+        const moveModal = createModal('move-modal', (data) => {
+            moveModalState = data;
             
             const projectSelect = $('#target-project-select');
             projectSelect.replaceChildren(
@@ -1716,9 +1725,14 @@ chmod 755 kbtd
             );
             
             updateColumnSelect();
-            
-            $('#move-modal').classList.add('active');
-        }
+        }, () => {
+            moveModalState = {
+                cardLineNumber: null,
+                cardOriginalLine: null,
+                sourceColIndex: null,
+                sourceCardIndex: null
+            };
+        });
 
         function updateColumnSelect() {
             const projectSelect = $('#target-project-select');
@@ -1736,17 +1750,7 @@ chmod 755 kbtd
             );
         }
 
-        function closeMoveModal() {
-            $('#move-modal').classList.remove('active');
-            moveModalState = {
-                cardLineNumber: null,
-                cardOriginalLine: null,
-                sourceColIndex: null,
-                sourceCardIndex: null
-            };
-        }
-
-        async function openCardDetailModal(card) {
+        const cardDetailModal = createModal('card-detail-modal', async (card) => {
             const file = await state.fileHandle.getFile();
             const text = await file.text();
             const defaultIndent = detectIndentInFile(text);
@@ -1768,9 +1772,14 @@ chmod 755 kbtd
             $('#card-detail-content-textarea').value = strippedContent;
             
             updateCardDetailButtons();
-            
-            $('#card-detail-modal').classList.add('active');
-        }
+        }, () => {
+            cardDetailModalState = {
+                card: null,
+                originalTitle: '',
+                originalContent: '',
+                baseIndent: ''
+            };
+        });
 
         function updateCardDetailButtons() {
             const titleInput = $('#card-detail-title-input');
@@ -1786,7 +1795,7 @@ chmod 755 kbtd
                     h('button', {
                         id: 'card-detail-cancel-btn',
                         textContent: 'Cancel',
-                        onclick: closeCardDetailModal
+                        onclick: () => cardDetailModal.close()
                     }),
                     h('button', {
                         id: 'card-detail-save-btn',
@@ -1799,7 +1808,7 @@ chmod 755 kbtd
                     h('button', {
                         id: 'card-detail-close-btn',
                         textContent: 'Close',
-                        onclick: closeCardDetailModal
+                        onclick: () => cardDetailModal.close()
                     })
                 );
             }
@@ -1824,26 +1833,10 @@ chmod 755 kbtd
                 cardDetailModalState.baseIndent
             );
             
-            closeCardDetailModal();
+            cardDetailModal.close();
         }
 
-        function closeCardDetailModal() {
-            $('#card-detail-modal').classList.remove('active');
-            cardDetailModalState = {
-                card: null,
-                originalTitle: '',
-                originalContent: '',
-                baseIndent: ''
-            };
-        }
-
-        function openAboutModal() {
-            $('#about-modal').classList.add('active');
-        }
-
-        function closeAboutModal() {
-            $('#about-modal').classList.remove('active');
-        }
+        const aboutModal = createModal('about-modal');
 
         async function confirmMove() {
             const targetSectionIndex = parseInt($('#target-project-select').value);
@@ -1866,7 +1859,7 @@ chmod 755 kbtd
                 );
             }
             
-            closeMoveModal();
+            moveModal.close();
         }
 
         function renderBoard() {
@@ -1915,7 +1908,7 @@ chmod 755 kbtd
                         ondragenter: (e) => handleCardDragEnter(e, cardDiv, colIndex, cardIndex),
                         onclick: (e) => {
                             if (!e.target.closest('.card-menu-btn')) {
-                                openCardDetailModal(card);
+                                cardDetailModal.open(card);
                             }
                         }
                     });
@@ -1967,12 +1960,12 @@ chmod 755 kbtd
                         onclick: (e) => {
                             e.stopPropagation();
                             closeAllCardMenus();
-                            openMoveModal(
-                                getDataInt(cardDiv, 'lineNumber'),
-                                cardDiv.dataset.originalLine,
-                                colIndex,
-                                cardIndex
-                            );
+                            moveModal.open({
+                                cardLineNumber: getDataInt(cardDiv, 'lineNumber'),
+                                cardOriginalLine: cardDiv.dataset.originalLine,
+                                sourceColIndex: colIndex,
+                                sourceCardIndex: cardIndex
+                            });
                         }
                     });
                     
@@ -2281,10 +2274,10 @@ chmod 755 kbtd
                 closeBurgerMenu();
             }
             if (e.target.id === 'about-modal') {
-                closeAboutModal();
+                aboutModal.close();
             }
             if (e.target.id === 'card-detail-modal') {
-                closeCardDetailModal();
+                cardDetailModal.close();
             }
         });
 
@@ -2516,11 +2509,11 @@ chmod 755 kbtd
 
         $('#about-menu-item').onclick = () => {
             closeBurgerMenu();
-            openAboutModal();
+            aboutModal.open();
         };
 
         $('#about-close-btn').onclick = () => {
-            closeAboutModal();
+            aboutModal.close();
         };
 
         $('#change-file-btn').onclick = () => {
@@ -2556,7 +2549,7 @@ chmod 755 kbtd
         };
 
         $('#move-cancel-btn').onclick = () => {
-            closeMoveModal();
+            moveModal.close();
         };
 
         $('#move-confirm-btn').onclick = async () => {

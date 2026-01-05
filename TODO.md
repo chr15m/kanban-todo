@@ -15,7 +15,6 @@
 
 ## Refactor
 
-- [ ] Consolidate modal logic into generic modal handler
 - [ ] Extract file operations into higher-level abstraction
 - [ ] Simplify drop indicator logic
 - [ ] Consolidate menu creation (card menus and burger menu)
@@ -26,6 +25,7 @@
 
 ## Done
 
+- [x] Consolidate modal logic into generic modal handler
 - [x] Warning colored note on home and about page if browser doesn't support FileSystem Access API.
 - [x] Ability to delete an item, with confirmation.
 - [x] When the dots menu shows on a 'completed' item the stuff behind it shows through
