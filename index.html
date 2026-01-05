@@ -1121,11 +1121,13 @@ chmod 755 kbtd
             }
         }
 
-        function detectIndentInFile(text) {
-            const lines = text.split('\n');
+        function detectIndent(lines, defaultIndent = '  ') {
+            if (!lines || lines.length === 0) return defaultIndent;
+            
+            const lineArray = typeof lines === 'string' ? lines.split('\n') : lines;
             let minIndent = null;
             
-            for (const line of lines) {
+            for (const line of lineArray) {
                 if (line.trim() === '') continue;
                 
                 const match = line.match(/^(\s+)/);
@@ -1137,27 +1139,7 @@ chmod 755 kbtd
                 }
             }
             
-            return minIndent || '  ';
-        }
-
-        function detectBaseIndent(nestedLines) {
-            if (nestedLines.length === 0) return '';
-            
-            let minIndent = null;
-            
-            for (const line of nestedLines) {
-                if (line.trim() === '') continue;
-                
-                const match = line.match(/^(\s+)/);
-                if (match) {
-                    const indent = match[1];
-                    if (minIndent === null || indent.length < minIndent.length) {
-                        minIndent = indent;
-                    }
-                }
-            }
-            
-            return minIndent || '';
+            return minIndent || defaultIndent;
         }
 
         function stripBaseIndent(nestedLines, baseIndent) {
@@ -1734,10 +1716,10 @@ chmod 755 kbtd
         const cardDetailModal = createModal('card-detail-modal', async (card) => {
             const file = await state.fileHandle.getFile();
             const text = await file.text();
-            const defaultIndent = detectIndentInFile(text);
+            const defaultIndent = detectIndent(text);
             
             const baseIndent = card.nestedLines.length > 0 
-                ? detectBaseIndent(card.nestedLines)
+                ? detectIndent(card.nestedLines, '')
                 : defaultIndent;
             
             const strippedContent = stripBaseIndent(card.nestedLines, baseIndent);

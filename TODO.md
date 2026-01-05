@@ -18,10 +18,10 @@
 - [ ] Consolidate menu creation (card menus and burger menu)
 - [ ] Extract line parsing logic - separate parsing from state management
 - [ ] Make createAddForm more generic to handle both columns and cards
-- [ ] Extract and consolidate indent detection functions
 
 ## Done
 
+- [x] Extract and consolidate indent detection functions
 - [x] Reduce IndexedDB boilerplate with generic DB operation wrapper
 - [x] Simplify drop indicator logic
 - [x] Extract file operations into higher-level abstraction
