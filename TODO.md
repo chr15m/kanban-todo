@@ -9,8 +9,20 @@
 ## TODO
 
 - [ ] Display sub-lines of the form `key: value` immediately after item
+- [ ] Make it a proper PWA with the minimal-pwa technique
 
 ## Bugs
+
+## Refactor
+
+- [ ] Consolidate modal logic into generic modal handler
+- [ ] Extract file operations into higher-level abstraction
+- [ ] Simplify drop indicator logic
+- [ ] Consolidate menu creation (card menus and burger menu)
+- [ ] Extract line parsing logic - separate parsing from state management
+- [ ] Reduce IndexedDB boilerplate with generic DB operation wrapper
+- [ ] Make createAddForm more generic to handle both columns and cards
+- [ ] Extract and consolidate indent detection functions
 
 ## Done
 
