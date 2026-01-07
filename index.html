@@ -154,6 +154,63 @@
             position: relative;
         }
 
+        .project-select-container {
+            position: relative;
+        }
+
+        .project-select-btn {
+            padding: 0.4rem 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+        }
+
+        .project-select-dropdown {
+            position: absolute;
+            right: 0;
+            top: 50px;
+            background: var(--bg);
+            border: .1rem solid var(--fg);
+            border-radius: var(--radius);
+            padding: 0.5em 0;
+            min-width: 250px;
+            z-index: 100;
+            display: none;
+        }
+
+        .project-select-dropdown.active {
+            display: block;
+        }
+
+        .project-select-dropdown-item {
+            padding: 0.75em 1em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75em;
+            background: transparent;
+            border: none;
+            color: var(--fg);
+            width: 100%;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        .project-select-dropdown-item:hover {
+            background: var(--shade);
+            opacity: 1;
+        }
+
+        .project-select-dropdown-item.current {
+            font-weight: bold;
+        }
+
+        .project-select-divider {
+            height: 1px;
+            background: var(--shade);
+            margin: 0.5em 0;
+        }
+
         .burger-btn {
             width: 40px;
             height: 40px;
@@ -884,6 +941,16 @@ chmod 755 kbtd
             <header>
                 <h2 id="board-title" style="margin:0">Project Name</h2>
                 <div class="header-controls">
+                    <div class="project-select-container">
+                        <button id="project-select-btn" class="project-select-btn" style="display:none">
+                            <span id="project-select-text"></span>
+                            <span>▼</span>
+                        </button>
+                        <button id="project-create-btn" class="project-select-btn" style="display:none">
+                            + Create project
+                        </button>
+                        <div id="project-select-dropdown" class="project-select-dropdown"></div>
+                    </div>
                     <button id="burger-btn" class="burger-btn">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -1708,6 +1775,10 @@ chmod 755 kbtd
             $('#burger-menu').classList.remove('active');
         }
 
+        function closeProjectDropdown() {
+            $('#project-select-dropdown').classList.remove('active');
+        }
+
         function updateCompletedCheckbox() {
             const checkbox = $('#completed-checkbox');
             if (state.showCompleted) {
@@ -1715,6 +1786,46 @@ chmod 755 kbtd
             } else {
                 checkbox.classList.remove('checked');
             }
+        }
+
+        function updateProjectSelector() {
+            const projectSelectBtn = $('#project-select-btn');
+            const projectCreateBtn = $('#project-create-btn');
+            const dropdown = $('#project-select-dropdown');
+            
+            projectSelectBtn.style.display = 'flex';
+            projectCreateBtn.style.display = 'none';
+            
+            const currentSection = state.sections[state.currentSectionIndex];
+            $('#project-select-text').textContent = currentSection.name;
+            
+            const items = state.sections.map((section, idx) => {
+                const isCurrent = idx === state.currentSectionIndex;
+                return h('button', {
+                    className: `project-select-dropdown-item ${isCurrent ? 'current' : ''}`,
+                    textContent: section.name,
+                    onclick: () => {
+                        if (!isCurrent) {
+                            selectSection(idx);
+                        }
+                        closeProjectDropdown();
+                    }
+                });
+            });
+            
+            const divider = h('div', { className: 'project-select-divider' });
+            
+            const newProjectItem = h('button', {
+                className: 'project-select-dropdown-item',
+                textContent: 'Add project',
+                onclick: () => {
+                    closeProjectDropdown();
+                    state.currentSectionIndex = -1;
+                    renderSectionPicker();
+                }
+            });
+            
+            dropdown.replaceChildren(...items, divider, newProjectItem);
         }
 
         const moveModal = createModal('move-modal', (data) => {
@@ -1876,6 +1987,7 @@ chmod 755 kbtd
             $('#board-title').textContent = section.name;
             
             updateCompletedCheckbox();
+            updateProjectSelector();
             
             const container = $('#board-container');
             
@@ -2277,6 +2389,9 @@ chmod 755 kbtd
             if (!e.target.closest('.burger-menu') && !e.target.closest('.burger-btn')) {
                 closeBurgerMenu();
             }
+            if (!e.target.closest('.project-select-dropdown') && !e.target.closest('#project-select-btn')) {
+                closeProjectDropdown();
+            }
             if (e.target.id === 'about-modal') {
                 aboutModal.close();
             }
@@ -2569,6 +2684,11 @@ chmod 755 kbtd
         $('#move-confirm-btn').onclick = async () => {
             await confirmMove();
         };
+
+        $('#project-select-btn').onclick = () => {
+            $('#project-select-dropdown').classList.toggle('active');
+        };
+
         }
 
         // PWA setup

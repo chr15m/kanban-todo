@@ -9,12 +9,12 @@
 ## TODO
 
 - [ ] Display sub-lines of the form `key: value` immediately after item
-- [ ] Project list pulldown in top right
 
 ## Bugs
 
 ## Done
 
+- [x] Project list pulldown in top right
 - [x] Make it a proper PWA with the minimal-pwa technique
 - [x] Extract and consolidate indent detection functions
 - [x] Reduce IndexedDB boilerplate with generic DB operation wrapper
@@ -40,3 +40,4 @@
 - [x] Give each column a max width of 450px and have them stretch to fill the area up to that.
 - [x] Don't put carriage returns between individual TODO list items. As far as possible try to preserve original formatting, just moving individual lines around without disturbing other lines.
 - [x] Ability to create a project on the projects select page, including if TODO.md is empty.
+
