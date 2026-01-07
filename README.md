@@ -5,6 +5,7 @@ A Kanban board for your Markdown TODO file in a single [index.html](./index.html
 - Single HTML file - simply upload to self-host
 - CLI tool to launch as a Chrome app: `kbtd TODO.md`
 - Two-way binding between UI and text file
+- Great for indie-scale solo projects and small teams
 
 ![Screencast of TODO Kanban editing a TODO.md file](./screencast.gif)
 

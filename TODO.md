@@ -9,14 +9,9 @@
 ## TODO
 
 - [ ] Display sub-lines of the form `key: value` immediately after item
+- [ ] Project list pulldown in top right
 
 ## Bugs
-
-## Refactor
-
-- [ ] Consolidate menu creation (card menus and burger menu)
-- [ ] Extract line parsing logic - separate parsing from state management
-- [ ] Make createAddForm more generic to handle both columns and cards
 
 ## Done
 

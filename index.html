@@ -803,6 +803,23 @@
     </style>
 </head>
 <body>
+    <template id="intro-content-template">
+        <h1>Kanban TODO</h1>
+        <p>A Kanban board for your Markdown TODO file.</p>
+        <ul style="text-align: left; max-width: 600px;">
+            <li>Drag-and-drop visual editing of plain text Markdown</li>
+            <li>Runs 100% in your browser - no server, no database</li>
+            <li>Single HTML file - upload to self-host</li>
+            <li>CLI tool to launch as a Chrome app: <code>kbtd TODO.md</code></li>
+            <li>Two-way binding between UI and text file</li>
+            <li>Great for indie-scale solo projects and small teams</li>
+        </ul>
+    </template>
+
+    <template id="footer-content-template">
+        <p><a href="https://github.com/chr15m/kanban-todo/blob/main/README.md" target="_blank">See README.md for more info.</a></p>
+    </template>
+
     <template id="install-instructions-template">
         <p>Install launch script:</p>
         <pre>curl -O <a href="https://mccormick.cx/apps/kanban-todo/kbtd">https://mccormick.cx/apps/kanban-todo/kbtd</a>
@@ -815,32 +832,35 @@ chmod 755 kbtd
 ./kbtd TODO.md</pre>
     </template>
 
+    <template id="project-selection-template">
+        <div class="project-name-form">
+            <label for="project-name-input">Project name:</label>
+            <div class="form-row">
+                <input type="text" id="project-name-input" placeholder="e.g. TODO, work, personal...">
+                <button id="open-file-btn">Open TODO.md</button>
+            </div>
+        </div>
+        <div id="recent-projects" class="recent-projects" style="display:none">
+            <h3>Recent projects:</h3>
+            <ul id="recent-projects-list" class="recent-projects-list"></ul>
+        </div>
+    </template>
+
+    <template id="source-copyright-template">
+        <p><a href="https://github.com/chr15m/kanban-todo" target="_blank">Source code for self-hosting</a> - upload index.html to your server.</p>
+        <p>Copyright &copy; Chris McCormick 2025</p>
+    </template>
+
     <div id="app">
         <div id="landing-screen" class="screen center-content">
-            <h1>Kanban TODO</h1>
-            <p>A Kanban board for your Markdown TODO file.</p>
-            <ul style="text-align: left; max-width: 600px;">
-                <li>Drag-and-drop visual editing of plain text Markdown</li>
-                <li>Runs 100% in your browser - no server, no database</li>
-                <li>Single HTML file - upload to self-host</li>
-                <li>CLI tool to launch as a Chrome app: <code>kbtd TODO.md</code></li>
-                <li>Two-way binding between UI and text file</li>
-            </ul>
+            <div id="landing-intro"></div>
+            <div id="landing-footer"></div>
             <div id="api-warning" class="warning" style="display:none; max-width: 600px;">
                 ⚠ Your browser does not support the FileSystem Access API. Chromium-based browsers (Chrome, Edge, etc.) are known to work.
             </div>
-            <div class="project-name-form">
-                <label for="project-name-input">Project name:</label>
-                <div class="form-row">
-                    <input type="text" id="project-name-input" placeholder="e.g. TODO, work, personal...">
-                    <button id="open-file-btn">Open TODO.md</button>
-                </div>
-            </div>
-            <div id="recent-projects" class="recent-projects" style="display:none">
-                <h3>Recent projects:</h3>
-                <ul id="recent-projects-list" class="recent-projects-list"></ul>
-            </div>
+            <div id="landing-project-selection"></div>
             <div id="landing-instructions"></div>
+            <div id="landing-source-copyright"></div>
             <div id="landing-error" class="error" style="display:none"></div>
         </div>
 
@@ -924,20 +944,13 @@ chmod 755 kbtd
 
         <div id="about-modal" class="modal">
             <div class="modal-content">
-                <h3>About Kanban TODO</h3>
-                <p>A Kanban board for your Markdown TODO file.</p>
-                <ul style="text-align: left;">
-                    <li>Drag-and-drop visual editing of plain text Markdown</li>
-                    <li>Runs 100% in your browser - no server, no database</li>
-                    <li>Single HTML file - upload to self-host</li>
-                    <li>CLI tool to launch as a Chrome app: <code>kbtd TODO.md</code></li>
-                </ul>
+                <div id="about-intro"></div>
+                <div id="about-footer"></div>
                 <div id="about-api-warning" class="warning" style="display:none;">
                     ⚠ Your browser does not support the FileSystem Access API. This app requires a Chromium-based browser (Chrome, Edge, etc.) to work.
                 </div>
                 <div id="about-instructions"></div>
-                <p><a href="https://github.com/chr15m/kanban-todo" target="_blank">Source code for self-hosting</a></p>
-                <p>Copyright &copy; Chris McCormick 2025</p>
+                <div id="about-source-copyright"></div>
                 <div class="modal-buttons">
                     <button id="about-close-btn">Close</button>
                 </div>
@@ -1004,11 +1017,35 @@ chmod 755 kbtd
             return parseInt(el.dataset[key]);
         }
 
+        function insertIntroContent(containerId) {
+            const template = $('#intro-content-template');
+            const clone = template.content.cloneNode(true);
+            $(`#${containerId}`).appendChild(clone);
+        }
+
+        function insertFooterContent(containerId) {
+            const template = $('#footer-content-template');
+            const clone = template.content.cloneNode(true);
+            $(`#${containerId}`).appendChild(clone);
+        }
+
+        function insertProjectSelection(containerId) {
+            const template = $('#project-selection-template');
+            const clone = template.content.cloneNode(true);
+            $(`#${containerId}`).appendChild(clone);
+        }
+
         function insertInstallInstructions(containerId) {
             const template = $('#install-instructions-template');
             const clone = template.content.cloneNode(true);
             const currentUrl = window.location.href.split('?')[0];
             clone.querySelector('.current-url').textContent = currentUrl;
+            $(`#${containerId}`).appendChild(clone);
+        }
+
+        function insertSourceCopyright(containerId) {
+            const template = $('#source-copyright-template');
+            const clone = template.content.cloneNode(true);
             $(`#${containerId}`).appendChild(clone);
         }
 
@@ -2342,8 +2379,17 @@ chmod 755 kbtd
         }
 
         async function init() {
+            insertIntroContent('landing-intro');
+            insertIntroContent('about-intro');
+            insertFooterContent('landing-footer');
+            insertFooterContent('about-footer');
+            insertProjectSelection('landing-project-selection');
             insertInstallInstructions('landing-instructions');
             insertInstallInstructions('about-instructions');
+            insertSourceCopyright('landing-source-copyright');
+            insertSourceCopyright('about-source-copyright');
+            
+            setupEventHandlers();
             
             if (!checkFileSystemAccessAPI()) {
                 $('#api-warning').style.display = 'block';
@@ -2403,7 +2449,8 @@ chmod 755 kbtd
             }, 250);
         }
 
-        $('#open-file-btn').onclick = async () => {
+        function setupEventHandlers() {
+            $('#open-file-btn').onclick = async () => {
             const projectNameInput = $('#project-name-input');
             const projectName = projectNameInput.value.trim();
             
@@ -2522,6 +2569,7 @@ chmod 755 kbtd
         $('#move-confirm-btn').onclick = async () => {
             await confirmMove();
         };
+        }
 
         // PWA setup
         function setupPWA() {
