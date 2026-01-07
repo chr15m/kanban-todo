@@ -2423,6 +2423,12 @@ chmod 755 kbtd
             return false;
         }
 
+        let modalMousedownTarget = null;
+        
+        document.addEventListener('mousedown', (e) => {
+            modalMousedownTarget = e.target;
+        });
+        
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.card-menu') && !e.target.closest('.card-menu-btn')) {
                 closeAllCardMenus();
@@ -2433,12 +2439,13 @@ chmod 755 kbtd
             if (!e.target.closest('.project-select-dropdown') && !e.target.closest('#project-select-btn')) {
                 closeProjectDropdown();
             }
-            if (e.target.id === 'about-modal') {
+            if (e.target.id === 'about-modal' && modalMousedownTarget && modalMousedownTarget.id === 'about-modal') {
                 aboutModal.close();
             }
-            if (e.target.id === 'card-detail-modal') {
+            if (e.target.id === 'card-detail-modal' && modalMousedownTarget && modalMousedownTarget.id === 'card-detail-modal') {
                 cardDetailModal.close();
             }
+            modalMousedownTarget = null;
         });
 
         $('#card-detail-title-input').addEventListener('input', updateCardDetailButtons);
