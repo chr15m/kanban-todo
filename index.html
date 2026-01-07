@@ -368,16 +368,24 @@
 
         .card-footer {
             display: flex;
-            align-items: center;
-            justify-content: end;
+            align-items: flex-start;
+            justify-content: space-between;
             font-size: 0.85em;
             color: var(--shade);
+            gap: 0.5em;
         }
 
         .card-footer-content {
             display: flex;
             flex-direction: column;
             align-items: center;
+            gap: 0.25em;
+        }
+
+        .card-metadata {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
             gap: 0.25em;
         }
 
@@ -1273,6 +1281,25 @@ chmod 755 kbtd
             });
         }
 
+        function extractMetadata(nestedLines) {
+            const metadata = [];
+            const metadataPattern = /^(\w+):\s*(.+)$/;
+            
+            for (const line of nestedLines) {
+                const trimmed = line.trim();
+                if (trimmed === '') continue;
+                
+                const match = trimmed.match(metadataPattern);
+                if (match) {
+                    metadata.push({ key: match[1], value: match[2] });
+                } else {
+                    break;
+                }
+            }
+            
+            return metadata;
+        }
+
         function countSubtasks(nestedLines) {
             let total = 0;
             let completed = 0;
@@ -2011,6 +2038,7 @@ chmod 755 kbtd
                     if (!state.showCompleted && card.completed) return;
                     
                     const hasNestedContent = card.nestedLines.length > 0;
+                    const metadata = extractMetadata(card.nestedLines);
                     const subtasks = countSubtasks(card.nestedLines);
                     
                     const cardDiv = h('div', {
@@ -2107,12 +2135,25 @@ chmod 755 kbtd
                     
                     cardDiv.append(cardHeader, menu);
                     
-                    if (hasNestedContent) {
+                    if (hasNestedContent || metadata.length > 0) {
                         const cardFooter = h('div', { className: 'card-footer' });
-                        const cardFooterContent = h('div', { className: 'card-footer-content' });
+                        
+                        if (metadata.length > 0) {
+                            const metadataDiv = h('div', { className: 'card-metadata' });
+                            metadata.forEach(m => {
+                                const metadataLine = h('span', { 
+                                    className: 'card-expand-indicator',
+                                    textContent: `${m.key}: ${m.value}`
+                                });
+                                metadataDiv.append(metadataLine);
+                            });
+                            cardFooter.append(metadataDiv);
+                        }
                         
                         if (subtasks.total > 0) {
                             const percentage = subtasks.total > 0 ? (subtasks.completed / subtasks.total) * 100 : 0;
+                            
+                            const cardFooterContent = h('div', { className: 'card-footer-content' });
                             
                             const expandIndicator = h('span', { 
                                 className: 'card-expand-indicator',
@@ -2127,15 +2168,15 @@ chmod 755 kbtd
                             );
                             
                             cardFooterContent.append(expandIndicator, progressBar);
-                        } else {
+                            cardFooter.append(cardFooterContent);
+                        } else if (metadata.length === 0) {
                             const expandIndicator = h('span', { 
                                 className: 'card-expand-indicator',
                                 textContent: '+'
                             });
-                            cardFooterContent.append(expandIndicator);
+                            cardFooter.append(expandIndicator);
                         }
                         
-                        cardFooter.append(cardFooterContent);
                         cardDiv.append(cardFooter);
                     }
                     

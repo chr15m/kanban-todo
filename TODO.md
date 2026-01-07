@@ -8,12 +8,11 @@
 
 ## TODO
 
-- [ ] Display sub-lines of the form `key: value` immediately after item
-
 ## Bugs
 
 ## Done
 
+- [x] Display sub-lines of the form `key: value` immediately after item
 - [x] Project list pulldown in top right
 - [x] Make it a proper PWA with the minimal-pwa technique
 - [x] Extract and consolidate indent detection functions
