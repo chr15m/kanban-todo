@@ -1858,6 +1858,10 @@ chmod 755 kbtd
         const moveModal = createModal('move-modal', (data) => {
             moveModalState = data;
             
+            const currentSection = state.sections[state.currentSectionIndex];
+            const currentColumn = currentSection.columns[data.sourceColIndex];
+            const currentColumnName = currentColumn.name;
+            
             const projectSelect = $('#target-project-select');
             projectSelect.replaceChildren(
                 ...state.sections.map((section, index) => 
@@ -1869,7 +1873,7 @@ chmod 755 kbtd
                 )
             );
             
-            updateColumnSelect();
+            updateColumnSelect(currentColumnName);
         }, () => {
             moveModalState = {
                 cardLineNumber: null,
@@ -1879,17 +1883,28 @@ chmod 755 kbtd
             };
         });
 
-        function updateColumnSelect() {
+        function updateColumnSelect(defaultColumnName = null) {
             const projectSelect = $('#target-project-select');
             const selectedProjectIndex = parseInt(projectSelect.value);
             const selectedProject = state.sections[selectedProjectIndex];
+            
+            let defaultIndex = 0;
+            if (defaultColumnName) {
+                const matchingIndex = selectedProject.columns.findIndex(
+                    col => col.name === defaultColumnName
+                );
+                if (matchingIndex !== -1) {
+                    defaultIndex = matchingIndex;
+                }
+            }
             
             const columnSelect = $('#target-column-select');
             columnSelect.replaceChildren(
                 ...selectedProject.columns.map((column, index) => 
                     h('option', {
                         value: index,
-                        textContent: column.name
+                        textContent: column.name,
+                        selected: index === defaultIndex
                     })
                 )
             );
@@ -2722,7 +2737,10 @@ chmod 755 kbtd
         };
 
         $('#target-project-select').onchange = () => {
-            updateColumnSelect();
+            const currentSection = state.sections[state.currentSectionIndex];
+            const currentColumn = currentSection.columns[moveModalState.sourceColIndex];
+            const currentColumnName = currentColumn ? currentColumn.name : null;
+            updateColumnSelect(currentColumnName);
         };
 
         $('#move-cancel-btn').onclick = () => {
