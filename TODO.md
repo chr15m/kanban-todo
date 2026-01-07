@@ -2,7 +2,8 @@
 
 ## Backlog
 
-- [ ] Automation (move to 'done' when checked)
+- [ ] Automation option to move to 'done' column when checked
+      Store config in an HTML comment e.g. <!-- kbtd {"config": ...} -->
 - [ ] Minimize the number of times the user is asked for access.
       If possible ask for all the access required just once.
 
