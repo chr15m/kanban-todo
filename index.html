@@ -935,6 +935,13 @@ chmod 755 kbtd
             <button id="grant-permission-btn">Grant Access</button>
         </div>
 
+        <div id="file-select-screen" class="screen center-content">
+            <h1>Select File</h1>
+            <p>Please select the file:</p>
+            <p id="file-select-path" style="font-weight: bold; margin: 1em 0;"></p>
+            <button id="select-file-btn">Select File</button>
+        </div>
+
         <div id="section-screen" class="screen center-content">
             <h1>Select Project</h1>
             <ul id="section-list" class="section-list"></ul>
@@ -2596,19 +2603,13 @@ chmod 755 kbtd
                         showScreen('permission-screen');
                     }
                 } else {
-                    await renderRecentProjects();
-                    showScreen('landing-screen');
-                    $('#landing-error').textContent = 
-                        `Please select the file: ${state.filePath}`;
-                    $('#landing-error').style.display = 'block';
+                    $('#file-select-path').textContent = state.filePath;
+                    showScreen('file-select-screen');
                 }
             } catch (err) {
                 console.error(err);
-                await renderRecentProjects();
-                showScreen('landing-screen');
-                $('#landing-error').textContent = 
-                    `Error loading file. Please select it again.`;
-                $('#landing-error').style.display = 'block';
+                $('#file-select-path').textContent = state.filePath;
+                showScreen('file-select-screen');
             }
         }
 
@@ -2753,6 +2754,32 @@ chmod 755 kbtd
 
         $('#project-select-btn').onclick = () => {
             $('#project-select-dropdown').classList.toggle('active');
+        };
+
+        $('#select-file-btn').onclick = async () => {
+            try {
+                const [handle] = await window.showOpenFilePicker({
+                    id: 'kbtd-todo-file',
+                    mode: 'readwrite',
+                    types: [{
+                        description: 'Markdown files',
+                        accept: { 'text/markdown': ['.md'] }
+                    }]
+                });
+                
+                state.fileHandle = handle;
+                
+                await storeFileHandle(state.filePath, handle);
+                
+                await loadFile();
+                startPolling();
+                
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error(err);
+                    alert('Error opening file');
+                }
+            }
         };
 
         }
