@@ -1291,15 +1291,26 @@ chmod 755 kbtd
         function extractMetadata(nestedLines) {
             const metadata = [];
             const metadataPattern = /^(\w+):\s*(.+)$/;
+            const hashtagPattern = /#(\w+)/g;
             
-            for (const line of nestedLines) {
-                const trimmed = line.trim();
+            for (let i = 0; i < nestedLines.length; i++) {
+                const trimmed = nestedLines[i].trim();
                 if (trimmed === '') continue;
                 
+                // Extract hashtags from first line only
+                if (i === 0) {
+                    const hashtags = [...trimmed.matchAll(hashtagPattern)];
+                    hashtags.forEach(match => {
+                        metadata.push({ key: 'tag', value: match[1] });
+                    });
+                }
+                
+                // Extract key-value metadata
                 const match = trimmed.match(metadataPattern);
                 if (match) {
                     metadata.push({ key: match[1], value: match[2] });
-                } else {
+                } else if (i > 0) {
+                    // Stop looking for metadata after first non-matching line (after line 0)
                     break;
                 }
             }
@@ -2165,7 +2176,7 @@ chmod 755 kbtd
                             metadata.forEach(m => {
                                 const metadataLine = h('span', { 
                                     className: 'card-expand-indicator',
-                                    textContent: `${m.key}: ${m.value}`
+                                    textContent: m.key === 'tag' ? `#${m.value}` : `${m.key}: ${m.value}`
                                 });
                                 metadataDiv.append(metadataLine);
                             });
