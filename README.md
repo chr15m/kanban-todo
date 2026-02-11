@@ -1,4 +1,6 @@
-A Kanban board for your Markdown TODO file in a single [index.html](./index.html) file.
+A markdown textfile based kanban board in a single [index.html](./index.html) file.
+
+[Download index.html](https://raw.githubusercontent.com/chr15m/kanban-todo/main/index.html) | [Download Zip](https://github.com/chr15m/kanban-todo/archive/refs/heads/main.zip)
 
 - Drag-and-drop visual editing of plain text Markdown TODOs
 - Runs 100% in your browser - no server, no database
