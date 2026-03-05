@@ -95,7 +95,6 @@
             border-radius: var(--radius);
             font-family: monospace;
             resize: vertical;
-            min-height: 150px;
         }
 
         input::placeholder,
@@ -1950,6 +1949,7 @@ chmod 755 kbtd
             $('#card-detail-content-textarea').value = strippedContent;
             
             updateCardDetailButtons();
+            resizeDetailTextarea();
         }, () => {
             cardDetailModalState = {
                 card: null,
@@ -2481,8 +2481,60 @@ chmod 755 kbtd
             modalMousedownTarget = null;
         });
 
+        function getTextareaLineHeight(textarea) {
+            const style = window.getComputedStyle(textarea);
+            return parseFloat(style.lineHeight) ||
+                parseFloat(style.fontSize) * 1.2;
+        }
+
+        function calcTextareaHeight(textarea, rows) {
+            const lineHeight = getTextareaLineHeight(textarea);
+            const style = window.getComputedStyle(textarea);
+            const padding = parseFloat(style.paddingTop) +
+                parseFloat(style.paddingBottom);
+            const border = parseFloat(style.borderTopWidth) +
+                parseFloat(style.borderBottomWidth);
+            return rows * lineHeight + padding + border;
+        }
+
+        function modalOverflows(textarea, modal, rows) {
+            textarea.style.height = calcTextareaHeight(textarea, rows) + 'px';
+            return modal.scrollHeight > modal.clientHeight;
+        }
+
+        function resizeDetailTextarea() {
+            const textarea = $('#card-detail-content-textarea');
+            const modal = textarea.closest('.modal-content');
+            const minRows = 8;
+            const lineCount = textarea.value.split('\n').length;
+            const desiredRows = Math.max(minRows, lineCount + 1);
+
+            if (!modalOverflows(textarea, modal, desiredRows)) return;
+
+            let lo = minRows;
+            let hi = desiredRows;
+            while (lo < hi) {
+                const mid = Math.ceil((lo + hi) / 2);
+                if (modalOverflows(textarea, modal, mid)) {
+                    hi = mid - 1;
+                } else {
+                    lo = mid;
+                }
+            }
+            textarea.style.height = calcTextareaHeight(textarea, lo) + 'px';
+        }
+
+        window.addEventListener('resize', () => {
+            if ($('#card-detail-modal').classList.contains('active')) {
+                resizeDetailTextarea();
+            }
+        });
+
         $('#card-detail-title-input').addEventListener('input', updateCardDetailButtons);
-        $('#card-detail-content-textarea').addEventListener('input', updateCardDetailButtons);
+        $('#card-detail-content-textarea').addEventListener('input', () => {
+            updateCardDetailButtons();
+            resizeDetailTextarea();
+        });
 
         async function openRecentProject(projectName) {
             console.log('Opening recent project:', projectName);
