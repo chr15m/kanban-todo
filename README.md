@@ -28,6 +28,19 @@ The text based format is designed to be simple for humans, git, and LLMs to read
 - [ ] Yet another task.
 ```
 
+## CLI Install
+
+```
+curl -O https://mccormick.cx/apps/kanban-todo/kbtd
+chmod 755 kbtd
+
+# If self-hosting, set KBTD_URL to point at your URL:
+# export KBTD_URL="https://mccormick.cx/apps/kanban-todo/"
+
+# Then launch with:
+./kbtd TODO.md
+```
+
 ## Self host
 
 Copy `index.html` up to your server.
