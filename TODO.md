@@ -9,6 +9,9 @@
 
 ## TODO
 
+- [ ] Remove serviceworker Blob registration
+      It probably doesn't work and it is probably uneccessary - PWA install doesn't need it I don't think.
+
 ## Bugs
 
 ## Done
