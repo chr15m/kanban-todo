@@ -47,3 +47,7 @@ chmod 755 kbtd
 Copy `index.html` up to your server.
 
 If you're using the `kbtd` command line launcher, set `KBTD_URL` to point at your server.
+
+## Video walkthrough
+
+[![Video walkthrough of Kanban TODO](https://img.youtube.com/vi/yyBZceJG-Ls/maxresdefault.jpg)](https://youtu.be/yyBZceJG-Ls)
