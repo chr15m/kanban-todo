@@ -34,7 +34,8 @@ The text based format is designed to be simple for humans, git, and LLMs to read
 curl -O https://mccormick.cx/apps/kanban-todo/kbtd
 chmod 755 kbtd
 
-# If self-hosting, set KBTD_URL to point at your URL:
+# By default `kbtd` loads the web app from the my server.
+# If self-hosting, set KBTD_URL to load from your server instead:
 # export KBTD_URL="https://mccormick.cx/apps/kanban-todo/"
 
 # Then launch with:
