@@ -9,9 +9,11 @@ A markdown textfile based kanban board in a single [index.html](./index.html) fi
 - Two-way binding between UI and text file
 - Great for indie-scale solo projects and small teams
 
+[File format](#file-format) | [CLI Install](#cli-install) | [Self Host](#self-host) | [Video Walkthrough](#video-walkthrough)
+
 ![Screencast of TODO Kanban editing a TODO.md file](./screencast.gif)
 
-## Format
+## File Format
 
 The text based format is designed to be simple for humans, git, and LLMs to read and edit.
 
@@ -42,7 +44,7 @@ chmod 755 kbtd
 ./kbtd TODO.md
 ```
 
-## Self host
+## Self Host
 
 Copy `index.html` up to your server.
 
