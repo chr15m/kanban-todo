@@ -1071,6 +1071,8 @@ chmod 755 kbtd
             card: null,
             originalTitle: '',
             originalContent: '',
+            originalCompleted: false,
+            isCompleted: false,
             baseIndent: ''
         };
 
@@ -1476,13 +1478,13 @@ chmod 755 kbtd
             });
         }
 
-        async function updateCardInFile(lineNumber, newTitle, newNestedContent, baseIndent) {
-            console.log('updateCardInFile:', lineNumber, newTitle, newNestedContent, baseIndent);
+        async function updateCardInFile(lineNumber, newTitle, newNestedContent, baseIndent, isCompleted) {
+            console.log('updateCardInFile:', lineNumber, newTitle, newNestedContent, baseIndent, isCompleted);
             await modifyCard(lineNumber, (lines, cardInfo) => {
                 const card = cardInfo.card;
                 const oldNestedLineCount = card.nestedLines.length;
                 
-                const checkbox = card.completed ? '[x]' : '[ ]';
+                const checkbox = isCompleted ? '[x]' : '[ ]';
                 const newCardLine = `- ${checkbox} ${newTitle}`;
                 
                 const newNestedLines = applyBaseIndent(newNestedContent, baseIndent);
@@ -1942,6 +1944,8 @@ chmod 755 kbtd
                 card: card,
                 originalTitle: card.text,
                 originalContent: strippedContent,
+                originalCompleted: card.completed,
+                isCompleted: card.completed,
                 baseIndent: baseIndent
             };
             
@@ -1955,6 +1959,8 @@ chmod 755 kbtd
                 card: null,
                 originalTitle: '',
                 originalContent: '',
+                originalCompleted: false,
+                isCompleted: false,
                 baseIndent: ''
             };
         });
@@ -1966,10 +1972,26 @@ chmod 755 kbtd
             
             const titleChanged = titleInput.value !== cardDetailModalState.originalTitle;
             const contentChanged = contentTextarea.value !== cardDetailModalState.originalContent;
-            const isModified = titleChanged || contentChanged;
+            const completedChanged = cardDetailModalState.isCompleted !== cardDetailModalState.originalCompleted;
+            const isModified = titleChanged || contentChanged || completedChanged;
             
+            const completedCheckbox = h('div', {
+                className: `card-menu-checkbox ${cardDetailModalState.isCompleted ? 'checked' : ''}`
+            });
+            
+            const completedBtn = h('button', {
+                id: 'card-detail-completed-btn',
+                style: { display: 'flex', alignItems: 'center', gap: '0.5em', marginRight: 'auto',
+                    background: 'transparent', color: 'var(--fg)', border: '.1rem solid var(--fg)' },
+                onclick: () => {
+                    cardDetailModalState.isCompleted = !cardDetailModalState.isCompleted;
+                    updateCardDetailButtons();
+                }
+            }, completedCheckbox, h('span', { textContent: 'Completed' }));
+
             if (isModified) {
                 buttonsContainer.replaceChildren(
+                    completedBtn,
                     h('button', {
                         id: 'card-detail-cancel-btn',
                         textContent: 'Cancel',
@@ -1983,6 +2005,7 @@ chmod 755 kbtd
                 );
             } else {
                 buttonsContainer.replaceChildren(
+                    completedBtn,
                     h('button', {
                         id: 'card-detail-close-btn',
                         textContent: 'Close',
@@ -2008,7 +2031,8 @@ chmod 755 kbtd
                 cardDetailModalState.card.lineNumber,
                 newTitle,
                 newContent,
-                cardDetailModalState.baseIndent
+                cardDetailModalState.baseIndent,
+                cardDetailModalState.isCompleted
             );
             
             cardDetailModal.close();
