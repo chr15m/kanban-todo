@@ -9,7 +9,7 @@ A markdown textfile based kanban board in a single [index.html](./index.html) fi
 - Two-way binding between UI and text file
 - Great for indie-scale solo projects and small teams
 
-[File format](#file-format) | [CLI Install](#cli-install) | [Self Host](#self-host) | [Video Walkthrough](#video-walkthrough)
+[File format](#file-format) | [CLI Install](#cli-install) | [Self Host](#self-host) | [Browser Support](#browser-support) | [Video Walkthrough](#video-walkthrough)
 
 ![Screencast of TODO Kanban editing a TODO.md file](./screencast.gif)
 
@@ -49,6 +49,10 @@ chmod 755 kbtd
 Copy `index.html` up to your server.
 
 If you're using the `kbtd` command line launcher, set `KBTD_URL` to point at your server.
+
+## Browser Support
+
+Unfortunately the web app requires a Chromium-based browser (Chrome, Edge, Brave, etc.) for the [FileSystem Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API). Firefox and Safari don't implement it. The `kbtd` script runs the app in an isolated browser instance that doesn't interfere with your main browser.
 
 ## Video walkthrough
 
